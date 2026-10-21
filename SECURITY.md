@@ -55,6 +55,12 @@ Electron updated. It and the libraries Vite bundles into the renderer are listed
 as development dependencies but ship in the app, so an audit with `--omit=dev`
 misses them.
 
+Release builds run with a read-only repository token; a separate job that runs no
+npm code attaches the installers to the draft release. Only the repository admin
+can create release tags or update `main`, and published releases are immutable.
+Dependabot waits seven days before proposing a new dependency version, except for
+security updates.
+
 ## Limits
 
 - Identity checks are not atomic with file actions. A local writer can still race

@@ -89,15 +89,19 @@ and testing in the PR, including any platforms you could not check.
 
 1. Set the new version in `package.json` (`npm version <version> --no-git-tag-version`
    updates the lockfile too) and commit it.
-2. Tag the commit `v<version>` and push the tag.
+2. Tag the commit `v<version>` and push the tag. A ruleset lets only the
+   repository admin create, move or delete `v*` tags.
 3. `.github/workflows/release.yml` checks that the tag matches `package.json`,
    creates a draft release with generated notes, builds the Windows, macOS
-   (arm64 and x64) and Linux (AppImage and .deb) installers, and attaches each
-   one with a `.sha256` file. The notes start with a line saying that the macOS
-   builds are in beta; remove it from the workflow when they leave beta.
+   (arm64 and x64) and Linux (AppImage and .deb) installers with a read-only
+   token, then attaches each one with a `.sha256` file from a separate job. The
+   notes start with a line saying that the macOS builds are in beta; remove it
+   from the workflow when they leave beta.
 4. Smoke test the installers, edit the notes, then publish the draft.
 
-Rerunning the workflow for the same tag replaces the attached files.
+Rerunning the workflow for the same tag replaces the attached files while the
+release is a draft. Published releases are immutable: their files and tag can no
+longer change, so fix a bad release with a new version.
 
 ## Desktop smoke test
 
