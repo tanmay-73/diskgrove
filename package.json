@@ -57,7 +57,7 @@
     "electron": "^44.9.1",
     "electron-builder": "^26.0.12",
     "electron-vite": "^4.0.0",
-    "lucide-react": "^0.544.0",
+    "lucide-react": "^1.59.0",
     "pdfjs-dist": "^6.4.299",
     "prettier": "^3.6.2",
     "react": "^19.1.1",
