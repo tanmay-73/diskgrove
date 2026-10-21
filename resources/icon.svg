@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2536"/>
+      <stop offset="1" stop-color="#0a0e15"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#afcff4" stop-opacity="0.15"/>
+      <stop offset="0.45" stop-color="#839cc2" stop-opacity="0.025"/>
+      <stop offset="1" stop-color="#839cc2" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0.16" y2="1">
+      <stop offset="0" stop-color="#86bdff"/>
+      <stop offset="0.38" stop-color="#4c9bff"/>
+      <stop offset="1" stop-color="#3b86f2"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="0.12" y2="1">
+      <stop offset="0" stop-color="#88f1e5"/>
+      <stop offset="0.36" stop-color="#6fe6d9"/>
+      <stop offset="1" stop-color="#1ba598"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="0.12" y2="1">
+      <stop offset="0" stop-color="#7df3b6"/>
+      <stop offset="0.36" stop-color="#3dd68c"/>
+      <stop offset="1" stop-color="#22bf78"/>
+    </linearGradient>
+    <linearGradient id="trunk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8398b8"/>
+      <stop offset="1" stop-color="#5d6f8c"/>
+    </linearGradient>
+    <linearGradient id="usage" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4c9bff"/>
+      <stop offset="0.52" stop-color="#6fe6d9"/>
+      <stop offset="1" stop-color="#3dd68c"/>
+    </linearGradient>
+    <path id="leftCrown" d="M238 420H331Q351 420 351 440V454H373Q393 454 393 474V572Q393 592 373 592H356V633Q356 652 337 652H231Q212 652 212 633V592H194Q175 592 175 573V475Q175 455 195 455H217V441Q217 420 238 420Z"/>
+    <path id="middleCrown" d="M459 260H553Q575 260 575 282V305H593Q613 305 613 325V572Q613 592 593 592H576V631Q576 652 555 652H454Q433 652 433 631V592H415Q395 592 395 572V326Q395 306 415 306H437V283Q437 260 459 260Z"/>
+    <path id="rightCrown" d="M681 355H783Q802 355 802 374V397H823Q845 397 845 419V573Q845 592 826 592H806V631Q806 652 785 652H680Q659 652 659 631V592H640Q621 592 621 573V420Q621 398 641 398H661V375Q661 355 681 355Z"/>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#tile)"/>
+  <rect x="9" y="9" width="1006" height="1006" rx="216" fill="none" stroke="url(#rim)" stroke-width="10"/>
+  <rect x="189" y="754" width="646" height="66" rx="33" fill="#26354b"/>
+  <rect x="203" y="768" width="470" height="38" rx="19" fill="url(#usage)"/>
+  <g fill="url(#trunk)">
+    <rect x="261" y="630" width="48" height="125" rx="15"/>
+    <rect x="483" y="630" width="48" height="125" rx="15"/>
+    <rect x="707" y="630" width="48" height="125" rx="15"/>
+  </g>
+  <use href="#leftCrown" fill="url(#blue)"/>
+  <use href="#middleCrown" fill="url(#teal)"/>
+  <use href="#rightCrown" fill="url(#green)"/>
+  <path d="M212 515H393V528H212Z" fill="#d4eaff" fill-opacity="0.16"/>
+  <path d="M296 528H309V652H296Z" fill="#153c81" fill-opacity="0.20"/>
+  <path d="M395 446H613V461H395Z" fill="#d7fff8" fill-opacity="0.17"/>
+  <path d="M502 461H517V652H502Z" fill="#087a75" fill-opacity="0.17"/>
+  <path d="M621 507H845V522H621Z" fill="#e0ffea" fill-opacity="0.17"/>
+  <path d="M730 522H744V652H730Z" fill="#087e49" fill-opacity="0.17"/>
+</svg>
