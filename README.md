@@ -8,6 +8,8 @@ supports. Everything stays on your computer: there is no account, telemetry or
 cloud service. You can preview a file before deleting it, and nothing is opened
 or deleted without your confirmation.
 
+![DiskGrove treemap view of a scanned folder](docs/screenshots/treemap.png)
+
 ## What it does
 
 - Browse folder sizes in a tree, table, treemap, pie chart or bar chart.
@@ -25,6 +27,10 @@ or deleted without your confirmation.
 - Reveal items in the file manager, open them, or move them to Trash / Recycle Bin.
   Permanent deletion is also available. Opening and deletion require a native
   confirmation dialog.
+
+| Details                                                                       | Extensions                                                                             | Duplicates                                                                             |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [![Details view](docs/screenshots/details.png)](docs/screenshots/details.png) | [![Extensions view](docs/screenshots/extensions.png)](docs/screenshots/extensions.png) | [![Duplicates view](docs/screenshots/duplicates.png)](docs/screenshots/duplicates.png) |
 
 ## Install
 
