@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from 'react'
-import { Copy, ExternalLink, FolderOpen, FolderSearch, LocateFixed, Trash2 } from 'lucide-react'
+import { Copy, ExternalLink, FolderOpen, FolderSearch, LocateFixed, Share2, Trash2 } from 'lucide-react'
 import { formatNumber } from '@shared/format'
 import type { NodeSummary } from '@shared/types'
 import {
@@ -10,6 +10,7 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { useScan } from '@/scan-context'
+import { canOpenFolders, revealLabel as revealLabelFor } from '@/lib/platform'
 
 export function ItemMenu({
   item,
@@ -32,17 +33,16 @@ export function ItemMenu({
     selectPath,
     locateItem,
     searchInFolder,
-    focusSearch
+    focusSearch,
+    showToast
   } = useScan()
   const focusSearchOnClose = useRef(false)
-  const revealLabel =
-    meta?.platform === 'darwin'
-      ? 'Reveal in Finder'
-      : meta?.platform === 'win32'
-        ? 'Show in Explorer'
-        : 'Show in folder'
+  const revealLabel = revealLabelFor(meta?.platform)
+  const openInApp = item.kind === 'dir' && !canOpenFolders(meta?.platform)
   const targets = selection && selection.length > 1 && selection.some((s) => s.path === item.path) ? selection : [item]
   const many = targets.length > 1
+  const shareItems = window.diskgrove.shareItems
+  const canShare = shareItems !== undefined && targets.every((t) => t.kind === 'file')
 
   return (
     <ContextMenu>
@@ -56,12 +56,14 @@ export function ItemMenu({
           focusSearch()
         }}
       >
-        <ContextMenuItem onClick={() => void openItem(item.path)}>
+        <ContextMenuItem onClick={() => (openInApp ? selectPath(item.path) : void openItem(item.path))}>
           <ExternalLink className="size-4" /> Open
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => void revealItem(item.path)}>
-          <FolderOpen className="size-4" /> {revealLabel}
-        </ContextMenuItem>
+        {revealLabel ? (
+          <ContextMenuItem onClick={() => void revealItem(item.path)}>
+            <FolderOpen className="size-4" /> {revealLabel}
+          </ContextMenuItem>
+        ) : null}
         {locate ? (
           <ContextMenuItem onClick={() => locateItem(item)}>
             <LocateFixed className="size-4" /> Show in tree
@@ -95,6 +97,17 @@ export function ItemMenu({
         >
           <Copy className="size-4" /> {many ? `Copy ${formatNumber(targets.length)} paths` : 'Copy path'}
         </ContextMenuItem>
+        {canShare ? (
+          <ContextMenuItem
+            onClick={() => {
+              shareItems(targets.map((t) => t.path)).catch((error: unknown) =>
+                showToast(error instanceof Error ? error.message : String(error))
+              )
+            }}
+          >
+            <Share2 className="size-4" /> {many ? `Share ${formatNumber(targets.length)} files…` : 'Share…'}
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuSeparator />
         <ContextMenuItem className="text-destructive" onClick={() => setPendingDelete(targets)}>
           <Trash2 className="size-4" /> {many ? `Delete ${formatNumber(targets.length)} items…` : 'Delete…'}

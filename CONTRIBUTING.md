@@ -8,19 +8,23 @@ Discuss larger features in an issue before starting a PR.
 
 ## Source layout
 
-| Location            | Responsibility                                                                    |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `src/main/`         | Filesystem scanning, file actions, IPC validation, previews, settings and reports |
-| `src/preload/`      | Typed API exposed to the sandboxed renderer                                       |
-| `src/shared/`       | Data types, formatting, themes, treemap layout, CSV and ZIP readers               |
-| `src/renderer/src/` | React views, scan state and the PDF, Office and media previews                    |
-| `resources/`        | App icon, Windows uninstall hooks and the macOS/Linux uninstall script            |
-| `scripts/`          | Icon generation and the bundled third-party license list                          |
-| `tests/`            | Filesystem fixtures, boundary regression and uninstall script tests               |
-| `benchmarks/`       | Scanner and disk benchmarks, run with `npm run benchmark`                         |
+| Location            | Responsibility                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `src/main/`         | Filesystem scanning, file actions, IPC validation, previews, settings and reports  |
+| `src/preload/`      | Typed API exposed to the sandboxed renderer                                        |
+| `src/shared/`       | Data types, formatting, themes, treemap layout, CSV and ZIP readers                |
+| `src/renderer/src/` | React views, scan state and the PDF, Office and media previews                     |
+| `src/android/`      | The Android app's API, scanner, app and media features and entry page              |
+| `android/`          | Capacitor's Android project and the Java plugin for files, apps, media and dialogs |
+| `resources/`        | App icon, Windows uninstall hooks and the macOS/Linux uninstall script             |
+| `scripts/`          | Icon generation and the bundled third-party license list                           |
+| `tests/`            | Filesystem fixtures, boundary regression and uninstall script tests                |
+| `benchmarks/`       | Scanner and disk benchmarks, run with `npm run benchmark`                          |
 
 Filesystem access belongs in the main process. Validate renderer arguments there
-and keep file-action confirmation and identity checks at that boundary.
+and keep file-action confirmation and identity checks at that boundary. On
+Android, `src/android/api.ts` and `src/android/features.ts` are that boundary:
+they apply the same validators before calling the Java plugin.
 
 Vite owns build output. Do not emit JavaScript into `src/`, where it can shadow
 TypeScript sources.
@@ -51,6 +55,13 @@ Use `dependencies` only for a package the main process must load from
 license files. The main and preload builds currently import no npm packages. If
 one of them starts bundling one, add `thirdPartyLicensesPlugin` to that build too.
 
+The Android build writes the same file into the APK, with `THIRD_PARTY_NOTICES.md`,
+adding the Capacitor packages listed in `vite.android.config.ts` and the Java
+libraries in `android/third-party-libraries.json`, whose license texts are in
+`scripts/licenses/`. Gradle fails the build when the app contains a Maven library
+that the JSON file does not cover. Add a new Capacitor plugin to the list in
+`vite.android.config.ts`.
+
 ## Uninstallers
 
 Windows uses the electron-builder NSIS uninstaller, extended by
@@ -78,9 +89,13 @@ npm run build
 npm audit
 ```
 
+For changes that reach the Android app, also run `npm run android:apk`.
+
 Add regression tests for scanning, deletion, exports, previews, IPC and
 uninstall script changes. Use disposable fixtures and mock Electron's shell and
-dialogs; never operate on existing user files.
+dialogs; never operate on existing user files. `tests/android.test.ts` runs the
+Android API and scanner against a stand-in for the Java plugin that uses Node's
+`fs`.
 
 Run `npm run format` to format changes. Describe the problem, resulting behavior
 and testing in the PR, including any platforms you could not check.
@@ -93,11 +108,19 @@ and testing in the PR, including any platforms you could not check.
    repository admin create, move or delete `v*` tags.
 3. `.github/workflows/release.yml` checks that the tag matches `package.json`,
    creates a draft release with generated notes, builds the Windows, macOS
-   (arm64 and x64) and Linux (AppImage and .deb) installers with a read-only
-   token, then attaches each one with a `.sha256` file from a separate job. The
-   notes start with a line saying that the macOS builds are in beta; remove it
-   from the workflow when they leave beta.
-4. Smoke test the installers, edit the notes, then publish the draft.
+   (arm64 and x64) and Linux (AppImage and .deb) installers and the Android APK
+   with a read-only token, then attaches each one with a `.sha256` file from a
+   separate job. The notes start with a line saying that the macOS and Android
+   builds are in beta, and that Android users must uninstall the previous
+   version first; edit it in the workflow when that changes.
+4. Smoke test the installers and the APK, edit the notes, then publish the draft.
+
+The APK's `versionCode` is derived from the version as
+`major * 10000 + minor * 100 + patch`, so minor and patch must stay below 100.
+Each release runner generates a new debug signing key, which is why Android
+will not update one release over another. Signing with a kept key needs a
+keystore stored as a repository secret and a `signingConfigs.release` in
+`android/app/build.gradle`.
 
 Rerunning the workflow for the same tag replaces the attached files while the
 release is a draft. Published releases are immutable: their files and tag can no
@@ -147,3 +170,109 @@ Uninstall on each OS as well:
 
 The installed app and `npm run dev` share one data folder, so back up your own
 settings before testing an uninstall on a development machine.
+
+## Android
+
+The Android app is the renderer in a Capacitor WebView. `src/android/main.tsx`
+installs an Android implementation of `window.diskgrove` before the React app
+starts, and the scanner shares `src/main/scan-results.ts` with desktop, reading
+the filesystem through the `DiskGroveNative` Java plugin instead of Node's
+`fs`. `tsconfig.android.json` typechecks that code without Node types, and
+`node:path` resolves to `src/android/shims/path.ts` in the Android build.
+
+On Android the start view is a home screen
+(`src/renderer/src/components/android/`) with Storage, Apps and Clean tabs and
+an access page. Its data comes from `window.diskgrove.android`, which
+`src/android/features.ts` implements over the plugin: `AppsInspector.java`
+reads installed apps and their sizes, `MediaCategories.java` sorts shared
+storage by kind through MediaStore, and `MediaWebViewClient.java` serves file
+thumbnails and app icons on the app's own origin. App sizes and last use need
+usage access, which the user grants in Settings; the app is granted the full
+app list and uninstall requests at install.
+
+Install JDK 21 and the Android SDK (platform 37 and platform tools), set
+`ANDROID_HOME` and `JAVA_HOME`, then:
+
+```sh
+npm run android:sync  # build out/android and copy it into the Android project
+npm run android:apk   # also build the signed release APK
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+```
+
+Use an emulator with Google APIs and API 30 or later, so that all files access
+behaves as on current phones. To inspect the WebView from `chrome://inspect`,
+install a debug build instead: run `./gradlew assembleDebug` in `android/` and
+install `app/build/outputs/apk/debug/app-debug.apk`. Release builds turn WebView
+debugging off.
+
+Capacitor generated the project; `npx cap sync android` rewrites
+`android/capacitor.settings.gradle` and `android/app/capacitor.build.gradle`, so
+make changes elsewhere. The app's version comes from `package.json`.
+
+## Android smoke test
+
+The instrumented tests run the **release APK**, not a mock filesystem or a
+debug-only build. On a disposable API 30+ emulator with a phone-sized display,
+ideally one with the newest system image (`system-images;android-37.0;google_apis;arm64-v8a`
+or `x86_64`):
+
+```sh
+npm run android:sync
+cd android
+./gradlew assembleRelease connectedReleaseAndroidTest --no-daemon --console=plain
+```
+
+`NativeIntegrationTest` creates and removes its own shared-storage fixtures.
+It checks the responsive scan UI, exact scan totals,
+search, duplicate hashing (including a sample-hash collision), file reads,
+media ranges, rescanning, and cancelling/accepting the native delete dialog.
+It also checks the access page and the home screen's tabs, the app list with
+sizes and icons, files by kind with thumbnails, deleting a file from those
+lists, and that Back at the scan root returns home.
+The Apps UI test grants usage access through Android Settings, checks the
+displayed app/data/cache/total sizes against Android's `StorageStats`, and
+returns from App info. The Storage UI test opens an image category, checks a
+real thumbnail and file size, cancels and confirms deletion, and verifies that
+a photo added in the background appears on resume.
+It changes the app's all-files-access and usage-access settings and recent
+scans, so do not run it against an installation whose settings you need to
+keep. Tests require API
+30 or later. Test the permission gate manually from a fresh installation:
+revoking all-files access terminates the app, including in-process instrumentation.
+The legacy permission flow still needs manual testing.
+
+Retain `app/build/outputs/androidTest-results/connected/` (JUnit XML and device
+logs), `app/build/reports/androidTests/connected/` (HTML report), and
+`app/build/outputs/connected_android_test_additional_output/` (screenshots,
+copied automatically from the emulator by Gradle).
+
+The checked-in [Android 17 verification snapshot](docs/android17-verification/)
+contains the API 37 JUnit result, measured Apps/Storage UI results, screenshots,
+lint report and full Gradle output. These are recorded observations, not golden
+size values: Android's cache and storage figures change between runs.
+
+The following checks supplement the automated tests, especially system pickers,
+opening files in other apps and the different preview formats.
+
+Push the desktop fixture to the emulator, for example with
+`adb push fixture /sdcard/Download/`, and check the same flow on a phone-sized
+screen:
+
+1. Grant all files access, then scan internal storage and the fixture with
+   **Scan this folder**. Check totals, every view and both panes.
+2. Pick a subfolder with **Select folder**, then check search and duplicates.
+3. Preview each fixture type, including video and audio seeking.
+4. Open a file with another app, cancel a delete prompt, then delete a
+   disposable file and confirm that it is gone.
+5. Export each format through the system file picker and check the files.
+6. Press Back through dialogs, panes and folders, and check that it returns to
+   the home screen at the scan root. On the home screen, check that Back clears
+   a selection, leaves a list, returns to the Storage tab and then puts the app
+   in the background.
+7. Switch between light and dark themes and change the font size.
+8. From a fresh installation, turn on usage access from the access page and
+   check that it shows as allowed on return. On the Apps tab, open App info and
+   come back, and uninstall a disposable app through Android's dialog.
+9. Share a few files from a list, use **Clear shared caches** and **Free up
+   space** on the Clean tab, and check that installing or removing an app or
+   a photo elsewhere shows up when you return to DiskGrove.

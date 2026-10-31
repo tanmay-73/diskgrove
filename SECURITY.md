@@ -59,7 +59,49 @@ Release builds run with a read-only repository token; a separate job that runs n
 npm code attaches the installers to the draft release. Only the repository admin
 can create release tags or update `main`, and published releases are immutable.
 Dependabot waits seven days before proposing a new dependency version, except for
-security updates.
+security updates. CI checks the Gradle wrapper against Gradle's published
+checksums before running it.
+
+## Android
+
+The Android app has no process boundary between the interface and the
+filesystem. The React app, the scanner and `src/android/api.ts` share one
+WebView, and that code calls the `DiskGroveNative` Java plugin, which can read
+and delete anything in shared storage. `api.ts` applies the desktop validators,
+accepts only paths in the current scan, and runs the same identity, ancestor and
+link checks before file actions. These checks guard against interface mistakes.
+They do not contain script running in the WebView. That page loads only from the
+APK, under a CSP that allows the app's own scripts and no connections. The app
+requests no `INTERNET` permission.
+
+DiskGrove asks for All files access (`MANAGE_EXTERNAL_STORAGE`) on Android 11
+and later, and for the storage permissions before that. It also holds
+`QUERY_ALL_PACKAGES` to list every installed app, `REQUEST_DELETE_PACKAGES` to
+open Android's uninstall dialog, and `PACKAGE_USAGE_STATS`, which does nothing
+until the user turns on usage access in Settings; with it the app reads each
+app's code, data and cache sizes and when it was last used. These are the most
+access to storage and apps that Android offers an ordinary app. Android 17
+adds no file-access limits beyond scoped storage: other apps' `Android/data`
+and `Android/obb` folders stay closed even with All files access. Google Play
+restricts All files access and the full app list, which is one reason DiskGrove
+ships as an APK.
+
+App backups and transfers to a new device are off (`allowBackup="false"` and
+data extraction rules that exclude everything). Deletion waits for a native
+dialog, and dismissing it deletes nothing. File lists by kind come from
+MediaStore, and `src/android/features.ts` acts only on files in the latest list
+of each kind and apps in the latest app list, as `api.ts` does with scanned
+paths. Uninstalling,
+clearing an app's cache and clearing shared caches always go through Android's
+own screens and dialogs. Opening a file shows the system app chooser every
+time; opening or sharing gives the chosen app read access to those files only
+(at most 100 at a time), through a FileProvider that is not exported. Previews
+of images, audio and video, and thumbnails of images and videos, stream from
+paths on the app's own origin that answer only GET requests for those types,
+with `nosniff` and a CSP that blocks scripts; they are not limited to listed
+files. App icons come from a path that accepts only a package name. Reports are
+saved through the system file picker. Settings and recent scans stay in the
+WebView's storage inside the app's private data.
 
 ## Limits
 
@@ -69,7 +111,9 @@ security updates.
 - Opening a file invokes its OS handler and can execute a program.
 - Previews parse untrusted file content with PDF.js and Chromium's image and
   media decoders. A flaw in one of them could be reached by selecting a crafted
-  file; the renderer sandbox limits what it can do.
+  file; on desktop the renderer sandbox limits what it can do. On Android, such
+  a flaw would run with the app's All files access, because the WebView also
+  holds the native plugin.
 - Duplicate results are snapshots of content hashes. Files can change afterward;
   hard links and reflinks can overstate recoverable space.
 - Network mounts and OS handlers may access the network outside Electron's
@@ -91,3 +135,7 @@ security updates.
   verify the publisher. The `.sha256` files only detect corrupted downloads,
   since they are published alongside the installers. Development builds do not
   provide the same protections as packaged releases.
+- The Android APK is signed with a debug key that the release runner generates,
+  so the signature identifies nobody and changes with every release. Android
+  treats each release as an unrelated app, so users must uninstall the previous
+  one first and cannot rely on the signature to tell DiskGrove from a lookalike.
