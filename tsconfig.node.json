@@ -12,9 +12,8 @@
     "resolveJsonModule": true,
     "lib": ["ES2023"],
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
-      "@shared/*": ["src/shared/*"]
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": [
