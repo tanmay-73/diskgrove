@@ -225,13 +225,12 @@ function Shell() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden animate-pane">
           <Breadcrumbs />
           <div className="min-h-0 min-w-0 flex-1">
-            <ResizablePanelGroup direction="horizontal">
+            <ResizablePanelGroup orientation="horizontal">
               <ResizablePanel
                 id="tree"
-                order={1}
-                defaultSize={settings.showPreview ? 22 : 30}
-                minSize={14}
-                maxSize={50}
+                defaultSize={settings.showPreview ? '22%' : '30%'}
+                minSize="14%"
+                maxSize="50%"
                 className="min-h-0 min-w-0"
               >
                 <DirectoryTree />
@@ -239,9 +238,8 @@ function Shell() {
               <ResizableHandle withHandle />
               <ResizablePanel
                 id="main"
-                order={2}
-                defaultSize={settings.showPreview ? 50 : 70}
-                minSize={30}
+                defaultSize={settings.showPreview ? '50%' : '70%'}
+                minSize="30%"
                 className="min-h-0 min-w-0"
               >
                 <div className="h-full min-h-0 min-w-0 overflow-hidden">
@@ -253,10 +251,9 @@ function Shell() {
                   <ResizableHandle withHandle />
                   <ResizablePanel
                     id="preview"
-                    order={3}
-                    defaultSize={28}
-                    minSize={18}
-                    maxSize={50}
+                    defaultSize="28%"
+                    minSize="18%"
+                    maxSize="50%"
                     className="min-h-0 min-w-0"
                   >
                     <PreviewPane />
