@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from 'react'
 import {
   AArrowDown,
   AArrowUp,
+  AppWindow,
   BarChart3,
   Copy,
   Download,
@@ -71,6 +72,7 @@ export function Ribbon() {
     startScan,
     cancelScan,
     goHome,
+    showApps,
     settings,
     applySettings,
     exportReport
@@ -132,20 +134,36 @@ export function Ribbon() {
         </Button>
       </Tip>
 
+      <Tip label="Installed apps">
+        <Button
+          variant={view === 'apps' ? 'secondary' : 'ghost'}
+          size="sm"
+          className={cn('shrink-0', view === 'apps' && 'text-foreground')}
+          aria-label="Installed apps"
+          aria-pressed={view === 'apps'}
+          onClick={showApps}
+        >
+          <AppWindow />
+          <span className="hidden lg:inline">Apps</span>
+        </Button>
+      </Tip>
+
       <Separator orientation="vertical" className="mx-1 h-6 shrink-0" />
 
       {TABS.map((item) => {
         const Icon = item.icon
+        // From the installed apps, a view tab goes back to the scan that is still loaded.
+        const active = view === 'scan' && tab === item.id
         return (
           <Tip key={item.id} label={item.label}>
             <Button
-              variant={tab === item.id ? 'secondary' : 'ghost'}
+              variant={active ? 'secondary' : 'ghost'}
               size="sm"
-              disabled={view !== 'scan'}
+              disabled={!rootPath}
               aria-label={item.label}
               className={cn(
                 'shrink-0 transition-[background-color,color,box-shadow] duration-150',
-                tab === item.id && 'text-foreground'
+                active && 'text-foreground'
               )}
               onClick={() => setTab(item.id)}
             >

@@ -7,6 +7,7 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
   minute: '2-digit'
 })
 const longDateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'short' })
+const dayFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 
 export function formatBytes(bytes: number, decimals = 2): string {
   if (!Number.isFinite(bytes) || bytes < 0) return '—'
@@ -54,6 +55,12 @@ export function formatDate(ts: number): string {
 export function formatDateLong(ts: number): string {
   if (!ts) return '—'
   return longDateFormat.format(ts)
+}
+
+/** The date alone, for times such as install dates that are only known to the day. */
+export function formatDay(ts: number): string {
+  if (!ts) return '—'
+  return dayFormat.format(ts)
 }
 
 export function extensionOf(name: string): string {

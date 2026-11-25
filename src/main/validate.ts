@@ -94,6 +94,12 @@ export function asScanOptions(value: unknown): ScanOptions {
   return { followLinks: v.followLinks === true, skipHidden: v.skipHidden === true }
 }
 
+/** An installed app's ID as the app list reports it. */
+export function asAppId(value: unknown): string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{16}$/.test(value)) throw new IpcArgumentError('unsupported app id')
+  return value
+}
+
 export function asFormat(value: unknown): ReportFormat {
   if (typeof value !== 'string' || !FORMATS.has(value)) throw new IpcArgumentError('unsupported report format')
   return value as ReportFormat

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  AppsProgress,
   DiskGroveAPI,
   DeleteMode,
   DupProgress,
@@ -39,6 +40,11 @@ const api: DiskGroveAPI = {
   getItemTimes: (path) => ipcRenderer.invoke('item:times', path),
   deleteItems: (paths: string[], mode: DeleteMode) => ipcRenderer.invoke('items:delete', paths, mode),
   exportReport: (format) => ipcRenderer.invoke('export:report', format),
+  listApps: (refresh) => ipcRenderer.invoke('apps:list', refresh),
+  cancelApps: () => ipcRenderer.invoke('apps:cancel'),
+  revealApp: (id) => ipcRenderer.invoke('apps:reveal', id),
+  getAppIcon: (id) => ipcRenderer.invoke('apps:icon', id),
+  onAppsProgress: (cb) => on<AppsProgress>('apps:progress', cb),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (partial: Partial<AppSettings>) => ipcRenderer.invoke('settings:set', partial),
   onSettingsChanged: (cb) => on<AppSettings>('settings:changed', cb),

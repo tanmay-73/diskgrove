@@ -202,6 +202,82 @@ export interface DupProgress {
   total: number
 }
 
+/**
+ * How an app was installed, which decides where its files are.
+ * - desktop: a Windows program registered for uninstall in Settings > Apps.
+ * - store: a Microsoft Store (MSIX) package.
+ * - app, appstore: a macOS bundle, from the Mac App Store for appstore.
+ * - deb, rpm, pacman: a Linux package that installs a menu entry.
+ * - flatpak, snap, appimage: a Linux menu entry for an app in that format.
+ * - folder: a program in its own folder, found from a Linux menu entry under /opt or a Windows shortcut.
+ * - scoop: a Windows app installed with Scoop.
+ * - homebrew: a Homebrew formula installed on request, on macOS or Linux.
+ * - steam, epic, gog: a game recorded by its launcher (Epic also covers Legendary; GOG covers Heroic).
+ */
+export type AppSource =
+  | 'desktop'
+  | 'store'
+  | 'app'
+  | 'appstore'
+  | 'deb'
+  | 'rpm'
+  | 'pacman'
+  | 'flatpak'
+  | 'snap'
+  | 'appimage'
+  | 'folder'
+  | 'scoop'
+  | 'homebrew'
+  | 'steam'
+  | 'epic'
+  | 'gog'
+
+/**
+ * - measured: DiskGrove added up the app's files.
+ * - estimated: the installer's own figure, used when the files could not be found.
+ * - pending: not measured yet.
+ * - unknown: neither is available, or measuring was stopped first.
+ */
+export type AppSizeKind = 'measured' | 'estimated' | 'pending' | 'unknown'
+
+export interface InstalledApp {
+  /** Stable across refreshes of the same app. */
+  id: string
+  name: string
+  version: string
+  publisher: string
+  source: AppSource
+  /** The folder or file the size covers; null for packages whose files are spread over the system. */
+  location: string | null
+  /** `location` is a folder, which can also be scanned. */
+  locationIsFolder: boolean
+  /** Bytes in the app's files, null until known. */
+  size: number | null
+  /** Bytes they occupy on disk, null when only an estimate is known. */
+  allocated: number | null
+  sizeKind: AppSizeKind
+  /** Some files could not be read, so the measured size is too low. */
+  partial: boolean
+  /** When the app was installed or last updated, in ms; 0 when unknown. */
+  installedAt: number
+  /** The listed app whose folder holds this one's, so totals count those files once. */
+  insideOf: string | null
+  /** An icon was found for the app, which `getAppIcon` draws. */
+  hasIcon: boolean
+}
+
+export interface AppsResult {
+  apps: InstalledApp[]
+  /** Measuring was stopped, so some sizes are missing. */
+  cancelled: boolean
+}
+
+export interface AppsProgress extends AppsResult {
+  phase: 'listing' | 'measuring' | 'done'
+  measured: number
+  total: number
+}
+
 export interface DiskGroveAPI {
   getMeta(): Promise<AppMeta>
   listDrives(): Promise<DriveInfo[]>
@@ -229,6 +305,13 @@ export interface DiskGroveAPI {
   getItemTimes(path: string): Promise<ItemTimes>
   deleteItems(paths: string[], mode: DeleteMode): Promise<DeleteResult>
   exportReport(format: 'csv' | 'json' | 'html'): Promise<string | null>
+  /** Installed apps and their sizes: the last list unless `refresh`, joining a listing already running. */
+  listApps(refresh: boolean): Promise<AppsResult>
+  cancelApps(): Promise<void>
+  revealApp(id: string): Promise<void>
+  /** The app's icon as an image data URL, or null when it cannot be drawn. */
+  getAppIcon(id: string): Promise<string | null>
+  onAppsProgress(cb: (p: AppsProgress) => void): () => void
   getSettings(): Promise<AppSettings>
   setSettings(partial: Partial<AppSettings>): Promise<AppSettings>
   onSettingsChanged(cb: (settings: AppSettings) => void): () => void

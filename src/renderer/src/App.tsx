@@ -17,6 +17,7 @@ import { TopFilesView } from '@/components/views/top-files-view'
 import { AgeView } from '@/components/views/age-view'
 import { DuplicatesView } from '@/components/views/duplicates-view'
 import { SearchView } from '@/components/views/search-view'
+import { AppsView } from '@/components/views/apps-view'
 import { FileGlyph } from '@/components/file-icon'
 import { PreviewPane } from '@/components/preview/preview-pane'
 import { Button } from '@/components/ui/button'
@@ -199,6 +200,8 @@ function Shell() {
         focusSearch()
         return
       }
+      // The installed apps view uses Escape and F5 for its own list.
+      if (view === 'apps') return
       if (e.key === 'Escape' && scanning) void cancelScan()
       if (e.key === 'F5' && rootPath) {
         e.preventDefault()
@@ -216,6 +219,8 @@ function Shell() {
       <Ribbon />
       {view === 'start' ? (
         <StartScreen />
+      ) : view === 'apps' ? (
+        <AppsView />
       ) : (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden animate-pane">
           <Breadcrumbs />

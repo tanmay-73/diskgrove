@@ -191,6 +191,15 @@ it('lists what the scan could not read and reveals those entries only', async ()
   }
 })
 
+it('reveals installed apps and draws their icons by the ID the list gave them, never by a path', async () => {
+  const { shell } = await import('electron')
+  await expect(Promise.resolve().then(() => invoke('apps:reveal', root))).rejects.toThrow('app id')
+  await expect(invoke('apps:reveal', '0123456789abcdef')).rejects.toThrow('no folder')
+  expect(shell.showItemInFolder).not.toHaveBeenCalled()
+  await expect(Promise.resolve().then(() => invoke('apps:icon', target))).rejects.toThrow('app id')
+  expect(await invoke('apps:icon', '0123456789abcdef')).toBeNull()
+})
+
 it('cannot bypass native confirmation by invoking delete directly', async () => {
   harness.prompt.mockResolvedValue({ response: 0 })
   expect(await invoke('items:delete', [target], 'permanent')).toEqual({ mode: 'permanent', deleted: [], failed: [] })

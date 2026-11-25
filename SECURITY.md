@@ -35,6 +35,32 @@ blocks scripts. PDFs render with PDF.js in a worker with XFA forms disabled.
 Office documents and ZIP archives are parsed in the renderer and shown as text
 and tables; their contents never become HTML or script.
 
+The installed apps list only reads. On Windows it runs the system PowerShell by
+full path with a fixed, encoded script that reads the uninstall registry keys,
+Store packages, the Steam, Epic Games Launcher and GOG registry keys, and the
+targets and version information of Start menu and desktop shortcuts, which it
+resolves without opening them or running their programs. On macOS it runs
+`/usr/bin/plutil` to read binary `Info.plist` files, and on RPM-based Linux `rpm`
+queries the package database. None of them receives renderer input. Flatpak IDs
+and snap names from desktop files are checked before they become paths.
+
+The main process also reads records that launchers and package managers keep:
+Steam's `libraryfolders.vdf` and `appmanifest_*.acf` files, Epic Games Launcher
+manifests, Legendary's and Heroic's `installed.json` files, Scoop app manifests and
+Homebrew's `INSTALL_RECEIPT.json` files. They are read as data, each up to a size
+limit, and parsed without being run. A Steam game's folder must be a single name
+inside its library's `steamapps/common`, and a folder another launcher records
+must be an absolute path to an existing folder other than a drive or volume root.
+The `SCOOP`, `SCOOP_GLOBAL`, `HOMEBREW_PREFIX`, `XDG_DATA_HOME` and
+`XDG_CONFIG_HOME` environment variables can point the listing at other folders;
+it only reads them. Measuring does not follow links inside an app's folder.
+The renderer reveals an app by an ID from the latest list, so only locations the
+main process found can be shown. App icons are requested by the same IDs. The main
+process reads only local files the listing named as icons, up to a size limit,
+and passes them on only when their first bytes show PNG, JPEG or ICO data, or as
+an SVG file, which an `<img>` element renders without running scripts or loading
+anything else. Windows draws executable icons without running the program.
+
 HTML reports escape data and apply a CSP. CSV cells with formula-like prefixes
 are escaped. Reports and settings are written to exclusive temporary files and
 renamed into place, with POSIX mode 0600; Windows uses the destination folder's
