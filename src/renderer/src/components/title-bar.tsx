@@ -93,6 +93,11 @@ export function TitleBar() {
               )}
             </span>
           </>
+        ) : view === 'apps' ? (
+          <>
+            <Separator orientation="vertical" className="mx-1 h-4" />
+            <span className="min-w-0 truncate text-xs text-muted-foreground">Installed apps</span>
+          </>
         ) : null}
       </div>
       {isMac ? null : (

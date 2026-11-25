@@ -13,6 +13,7 @@ import {
 } from './file-safety'
 import { fs } from './real-fs'
 import { forEachConcurrent, walkQueue } from './concurrency'
+import { allocatedOf, displayPath, isLink, nativePath } from './disk-usage'
 import { TopK } from './top-k'
 import { compileNameQuery } from './name-match'
 import { firmlinkDuplicates, virtualDevices } from './mounts'
@@ -53,26 +54,10 @@ interface Unreadable {
   code: string
 }
 
-const CLUSTER = 4096
-
 const SAMPLE_HEAD = 1024 * 1024
 const SAMPLE_TAIL = 64 * 1024
 
 const MAX_SEARCH_RESULTS = 5000
-
-function nativePath(p: string): string {
-  if (process.platform !== 'win32') return p
-  const normalized = path.resolve(p)
-  if (normalized.startsWith('\\\\?\\')) return normalized
-  // Stat calls on a prefixed volume root (\\?\C:\) fail with EISDIR; roots are short anyway.
-  if (path.parse(normalized).root === normalized) return normalized
-  if (normalized.startsWith('\\\\')) return `\\\\?\\UNC\\${normalized.slice(2)}`
-  return `\\\\?\\${normalized}`
-}
-
-function displayPath(p: string): string {
-  return p.replace(/^\\\\\?\\UNC\\/i, '\\\\').replace(/^\\\\\?\\/, '')
-}
 
 /**
  * Where a scan of `root` actually happens. A root reached through a link (macOS /tmp and /var, a
@@ -88,21 +73,6 @@ export async function resolveScanRoot(root: string): Promise<string> {
     }
     if (path.dirname(current) === current) return resolved
   }
-}
-
-function allocatedOf(size: number, stats: Stats): number {
-  if (typeof stats.blocks === 'number') {
-    // Outside Windows a zero block count is exact: sparse, inline and virtual files occupy nothing.
-    if (stats.blocks > 0 || process.platform !== 'win32') return stats.blocks * 512
-  }
-  if (size <= 0) return 0
-  return Math.ceil(size / CLUSTER) * CLUSTER
-}
-
-function isLink(entry: Dirent): boolean {
-  if (entry.isSymbolicLink()) return true
-  const maybe = entry as Dirent & { isJunction?: () => boolean }
-  return typeof maybe.isJunction === 'function' && maybe.isJunction()
 }
 
 /** The code to report for an item that could not be read, or null when it just went away mid-scan. */

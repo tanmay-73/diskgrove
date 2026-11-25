@@ -10,7 +10,7 @@ Discuss larger features in an issue before starting a PR.
 
 | Location            | Responsibility                                                                    |
 | ------------------- | --------------------------------------------------------------------------------- |
-| `src/main/`         | Filesystem scanning, file actions, IPC validation, previews, settings and reports |
+| `src/main/`         | Scanning, app sizes, file actions, IPC validation, previews, settings and reports |
 | `src/preload/`      | Typed API exposed to the sandboxed renderer                                       |
 | `src/shared/`       | Data types, formatting, themes, treemap layout, CSV and ZIP readers               |
 | `src/renderer/src/` | React views, scan state and the PDF, Office and media previews                    |
@@ -78,9 +78,9 @@ npm run build
 npm audit
 ```
 
-Add regression tests for scanning, deletion, exports, previews, IPC and
-uninstall script changes. Use disposable fixtures and mock Electron's shell and
-dialogs; never operate on existing user files.
+Add regression tests for scanning, deletion, exports, previews, installed apps,
+IPC and uninstall script changes. Use disposable fixtures and mock Electron's
+shell and dialogs; never operate on existing user files.
 
 Run `npm run format` to format changes. Describe the problem, resulting behavior
 and testing in the PR, including any platforms you could not check.
@@ -124,7 +124,12 @@ and PowerPoint documents, and a ZIP archive.
 6. Cancel both native open and delete prompts. Confirm no action occurs.
 7. Trash a fixture file, then restore it with the system file manager. Test
    permanent deletion only on another disposable fixture.
-8. Run `npm run pack` and repeat the main flow with the packaged application.
+8. Open **Apps**. Check that sizes fill in and match the folder sizes the file
+   manager reports, that Stop leaves the rest unmeasured, and that filtering,
+   sorting, reveal and **Scan this folder** work. Compare the list and its icons
+   with Settings > Apps on Windows, `/Applications` on macOS and the applications
+   menu on Linux.
+9. Run `npm run pack` and repeat the main flow with the packaged application.
    Check that preload loads and navigation stays inside the app.
 
 Before releasing, test installers, previews, permissions and Trash behavior on

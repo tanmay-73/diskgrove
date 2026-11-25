@@ -23,6 +23,8 @@ or deleted without your confirmation.
 - Preview the selected file in a side pane: images, video, audio, PDF, text and code,
   CSV, Word, Excel, PowerPoint and ZIP contents, with dates, dimensions, duration and
   document properties. Previews are read-only and never run file content.
+- See how much space each installed app takes, with its icon, version, publisher
+  and install date. Filter the list, sort it, reveal an app's folder or scan it.
 - Export CSV, JSON or a standalone HTML report.
 - Reveal items in the file manager, open them, or move them to Trash / Recycle Bin.
   Permanent deletion is also available. Opening and deletion require a native
@@ -180,6 +182,52 @@ The app has no telemetry or cloud service. Recent scan paths are saved locally
 in Electron's user-data directory and stay there after uninstalling unless you
 choose to remove them. Reports contain filenames and full paths; review them
 before sharing.
+
+## Installed apps
+
+**Apps** lists the installed applications and measures each one by adding up its
+files, the same way a scan does. Sizes appear as each app is measured; Escape or
+**Stop** ends measuring early.
+
+- **Windows:** programs registered in Settings > Apps, for all users and the
+  current user, and Microsoft Store apps. A program that records no install folder
+  is measured from the folder of its icon or uninstaller when that lies in Program
+  Files or AppData. Otherwise its installer's own estimate is shown, marked `≈`.
+  Programs no installer registered, such as portable ones, are found from their
+  Start menu and desktop shortcuts and measured in the folder the shortcut points
+  into, when that is in Program Files, AppData or a folder of its own outside your
+  user folder. Apps installed with Scoop, for you or for all users, are measured
+  in their Scoop folder, with every version Scoop keeps.
+- **macOS:** app bundles in `/Applications` and `~/Applications`, including one
+  folder level down such as `/Applications/Utilities`. Apps in
+  `/System/Applications` are part of the read-only system volume and are not listed.
+- **Linux:** applications in the menu. Flatpak apps are measured in their
+  installation folder, snaps by the snap files on disk (including the older
+  revisions snapd keeps), AppImages by their file, and deb, RPM and pacman
+  packages by the files the package installed. Programs in their own folder under
+  `/opt` are measured there.
+- **Homebrew (macOS and Linux):** formulae you installed, measured in their
+  Cellar folder with every version kept there. Formulae installed only as another
+  formula's dependency are not listed. Casks move their apps into Applications,
+  where they are listed as bundles.
+- **Games:** games installed by Steam (in every Steam library folder), the Epic
+  Games Launcher, GOG Galaxy (Windows), Legendary and Heroic (its Epic and GOG
+  libraries). Each is measured in its install folder, using what the launcher
+  records about where its games are. When the folder cannot be measured, the
+  launcher's own size is shown where it records one, marked `≈`. On Linux this includes Flatpak and snap installs of
+  Steam and Heroic.
+
+Sizes cover the installed program only: settings, caches, documents and other
+data an app stores elsewhere are not included. Package sizes leave out shared
+libraries and other packages they depend on, and Flatpak sizes leave out shared
+runtimes. When one listed app's folder is inside another's, such as an updater,
+the total counts it once. Files DiskGrove cannot read make a size too low; those
+apps are marked.
+
+Each app shows the icon its system shows: the icon a Windows program registered
+(or the one Windows Installer keeps for it) and a Store app's logo, a bundle's
+Finder icon on macOS, and on Linux the icon its menu entry names, from the
+hicolor icon theme or pixmaps. Apps without one get a generic icon.
 
 ## Contributing
 

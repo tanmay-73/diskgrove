@@ -111,7 +111,7 @@ const WINDOWS_DRIVES_COMMAND = [
 ].join('; ')
 
 // Avoid resolving powershell.exe through PATH.
-function powershellPath(): string {
+export function powershellPath(): string {
   const systemRoot = process.env.SystemRoot || process.env.windir || 'C:\\Windows'
   return path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
 }

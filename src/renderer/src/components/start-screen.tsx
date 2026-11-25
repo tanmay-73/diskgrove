@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderOpen, HardDrive, Network, RefreshCw, Usb } from 'lucide-react'
+import { AppWindow, FolderOpen, HardDrive, Network, RefreshCw, Usb } from 'lucide-react'
 import { formatBytes, formatDate, formatNumber, formatPercent } from '@shared/format'
 import type { DriveInfo, DriveKind } from '@shared/types'
 import { Button } from '@/components/ui/button'
@@ -40,7 +40,7 @@ function DriveRing({ used, total }: { used: number; total: number }) {
 }
 
 export function StartScreen() {
-  const { drives, settings, startScan, refreshDrives } = useScan()
+  const { drives, settings, startScan, refreshDrives, showApps } = useScan()
   const [refreshing, setRefreshing] = useState(false)
 
   return (
@@ -49,8 +49,8 @@ export function StartScreen() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Where did my disk space go?</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Scan a drive or folder to see an Explorer-style tree, size bars, treemap, file types, and the largest files
-            — all locally on your machine.
+            Scan a drive or folder to see an Explorer-style tree, size bars, treemap, file types, and the largest files,
+            or see how much space each installed app takes — all locally on your machine.
           </p>
         </div>
 
@@ -75,6 +75,9 @@ export function StartScreen() {
             }}
           >
             <RefreshCw className={cn(refreshing && 'animate-spin')} /> Refresh drives
+          </Button>
+          <Button variant="outline" onClick={showApps}>
+            <AppWindow /> Installed apps
           </Button>
         </div>
 

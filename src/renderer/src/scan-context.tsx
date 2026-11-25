@@ -52,6 +52,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   recents: []
 }
 
+/** The start screen, the scan views, or the installed apps, which leave the scan in place. */
+export type AppView = 'start' | 'scan' | 'apps'
+
 /** A finished search and the query it answered; `root` is the folder it covered. */
 export interface SearchResults extends SearchResult {
   query: string
@@ -61,7 +64,7 @@ interface ScanContextValue {
   meta: AppMeta | null
   settings: AppSettings
   drives: DriveInfo[]
-  view: 'start' | 'scan'
+  view: AppView
   rootPath: string | null
   selectedPath: string | null
   selectedNode: NodeSummary | null
@@ -93,6 +96,8 @@ interface ScanContextValue {
   pendingDelete: NodeSummary[] | null
   previewItem: NodeSummary | null
   toast: string | null
+  showToast: (message: string) => void
+  /** Shows a scan view; from the installed apps, this returns to the scan. */
   setTab: (tab: RightTab) => void
   setSort: (sort: SortSpec) => void
   setQuery: (q: string) => void
@@ -111,6 +116,7 @@ interface ScanContextValue {
   startScan: (path: string) => Promise<void>
   cancelScan: () => Promise<void>
   goHome: () => void
+  showApps: () => void
   selectPath: (path: string) => void
   toggleExpanded: (path: string) => void
   runSearch: () => Promise<void>
@@ -138,7 +144,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [meta, setMeta] = useState<AppMeta | null>(null)
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
   const [drives, setDrives] = useState<DriveInfo[]>([])
-  const [view, setView] = useState<'start' | 'scan'>('start')
+  const [view, setView] = useState<AppView>('start')
   const [rootPath, setRootPath] = useState<string | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<NodeSummary | null>(null)
@@ -400,6 +406,19 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     setFocusRequest(null)
     void refreshDrives()
   }, [scanning, refreshDrives])
+
+  const showApps = useCallback(() => {
+    setView('apps')
+    setPreviewItem(null)
+  }, [])
+
+  const showTab = useCallback(
+    (next: RightTab) => {
+      setTab(next)
+      if (rootPath) setView('scan')
+    },
+    [rootPath]
+  )
 
   const selectPath = useCallback((path: string) => {
     setSelectedPath(path)
@@ -667,7 +686,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       pendingDelete,
       previewItem,
       toast,
-      setTab,
+      showToast,
+      setTab: showTab,
       setSort,
       setQuery: updateQuery,
       clearSearch,
@@ -685,6 +705,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       startScan,
       cancelScan,
       goHome,
+      showApps,
       selectPath,
       toggleExpanded,
       runSearch,
@@ -728,11 +749,14 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       pendingDelete,
       previewItem,
       toast,
+      showToast,
+      showTab,
       applySettings,
       refreshDrives,
       startScan,
       cancelScan,
       goHome,
+      showApps,
       selectPath,
       toggleExpanded,
       runSearch,

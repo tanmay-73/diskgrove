@@ -5,14 +5,19 @@ import { MAX_PREVIEW_READ, MEDIA_SCHEME } from '@shared/preview'
 import { stepFontScale } from '@shared/font-scale'
 import { trafficLightPosition } from '@shared/title-bar'
 import type { NodeSummary } from '@shared/types'
+import { AppCatalog } from './apps'
+import { nativePath } from './disk-usage'
 import { listDrives, spaceAt } from './drives'
 import { exportReport } from './export'
+import { iconDataUrl } from './icon-image'
 import { resolveScanRoot, Scanner } from './scanner'
 import { confirmFileAction } from './confirm'
 import { OperationGate } from './operations'
 import { itemTimes, mediaResponse, readChunk } from './preview'
+import { fs } from './real-fs'
 import { loadSettings, saveSettings } from './settings'
 import {
+  asAppId,
   asDeleteMode,
   asFileGroup,
   asFormat,
@@ -27,6 +32,7 @@ import {
 } from './validate'
 
 const scanner = new Scanner()
+const apps = new AppCatalog()
 const operations = new OperationGate()
 let mainWindow: BrowserWindow | null = null
 let lastComplete: Awaited<ReturnType<Scanner['finish']>> | null = null
@@ -197,6 +203,7 @@ async function createWindow(): Promise<void> {
   mainWindow.on('closed', () => {
     mainWindow = null
     scanner.cancel()
+    apps.cancel()
   })
 
   mainWindow.webContents.on('preload-error', (_event, preload, error) => {
@@ -256,6 +263,7 @@ function hardenSession(ses: Electron.Session): void {
 scanner.onProgress = (p) => send('scan:progress', p)
 scanner.onComplete = (r) => send('scan:complete', r)
 scanner.onDupProgress = (p) => send('dup:progress', p)
+apps.onProgress = (p) => send('apps:progress', p)
 
 function registerIpc(): void {
   handle('app:meta', () => ({ platform: process.platform, home: app.getPath('home') }))
@@ -393,6 +401,27 @@ function registerIpc(): void {
       return exportReport(fromEvent(event), scanner, lastComplete, extensions, topFiles, age, fmt)
     })
   )
+
+  // Listing and measuring only read; apps are revealed by ID, so only folders the list found can be shown.
+  handle('apps:list', (_e, refresh) => apps.list(refresh === true))
+  handle('apps:cancel', () => {
+    apps.cancel()
+  })
+  handle('apps:reveal', async (_e, id) => {
+    const location = apps.locationOf(asAppId(id))
+    if (!location) throw new Error('That app has no folder to show')
+    try {
+      await fs.lstat(nativePath(location))
+    } catch {
+      throw new Error('The app is no longer there. Refresh the list.')
+    }
+    shell.showItemInFolder(location)
+  })
+  // Icons are requested by ID too; the main process draws them from files the listing found.
+  handle('apps:icon', (_e, id) => {
+    const icon = apps.iconOf(asAppId(id))
+    return icon ? iconDataUrl(icon) : null
+  })
 
   handle('window:minimize', (event) => {
     fromEvent(event)?.minimize()
