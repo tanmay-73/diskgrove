@@ -16,6 +16,7 @@ import { ExtensionsView } from '@/components/views/extensions-view'
 import { TopFilesView } from '@/components/views/top-files-view'
 import { AgeView } from '@/components/views/age-view'
 import { DuplicatesView } from '@/components/views/duplicates-view'
+import { EmptyFoldersView } from '@/components/views/empty-folders-view'
 import { SearchView } from '@/components/views/search-view'
 import { AppsView } from '@/components/views/apps-view'
 import { FileGlyph } from '@/components/file-icon'
@@ -59,6 +60,9 @@ function RightPane() {
       break
     case 'duplicates':
       pane = <DuplicatesView />
+      break
+    case 'empty':
+      pane = <EmptyFoldersView />
       break
     case 'search':
       pane = <SearchView />

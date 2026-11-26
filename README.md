@@ -20,6 +20,9 @@ or deleted without your confirmation.
   update while a scan runs, and the largest 2,000 are listed with the total count.
   Press Ctrl+F (⌘F on macOS) to search.
 - Find duplicate content using SHA-256, with full-file verification after sampling.
+- List empty folders and broken links, and delete them with the same confirmation.
+  Only the outermost empty folder of a nest is listed, and a folder holding anything
+  the scan skipped, such as hidden files or links, never counts as empty.
 - Preview the selected file in a side pane: images, video, audio, PDF, text and code,
   CSV, Word, Excel, PowerPoint and ZIP contents, with dates, dimensions, duration and
   document properties. Previews are read-only and never run file content.

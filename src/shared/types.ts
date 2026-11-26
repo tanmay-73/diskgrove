@@ -7,7 +7,7 @@ export type NodeKind = 'file' | 'dir'
 export type DriveKind = 'fixed' | 'removable' | 'network' | 'optical' | 'unknown'
 
 export type RightTab =
-  'details' | 'treemap' | 'pie' | 'bar' | 'extensions' | 'topfiles' | 'age' | 'duplicates' | 'search'
+  'details' | 'treemap' | 'pie' | 'bar' | 'extensions' | 'topfiles' | 'age' | 'duplicates' | 'empty' | 'search'
 
 export type SortKey = 'name' | 'size' | 'allocated' | 'files' | 'folders' | 'mtime' | 'percent'
 
@@ -119,6 +119,21 @@ export interface SearchResult {
   /** The largest matches, at most the requested number. */
   hits: NodeSummary[]
   /** Every match in the folder, including those beyond the limit. */
+  total: number
+}
+
+/** A symbolic link or junction whose target no longer exists. It has no size of its own. */
+export interface BrokenLink extends NodeSummary {
+  /** Where the link points, as stored in it. */
+  target: string
+}
+
+export interface BrokenLinkResult {
+  /** The folder that was searched, subfolders included. */
+  root: string
+  /** The first links found, at most the requested number. */
+  links: BrokenLink[]
+  /** Every broken link in the folder, including those beyond the limit. */
   total: number
 }
 
@@ -299,6 +314,13 @@ export interface DiskGroveAPI {
   /** Matches below `path` (the scan root when null), largest first. */
   search(query: string, path: string | null, limit: number): Promise<SearchResult>
   getUnreadable(limit: number): Promise<UnreadableList>
+  /**
+   * Folders below `path` (the scan root when null) that hold no files at any depth, outermost only:
+   * `total` counts those, and each one's `folderCount` the empty folders inside it.
+   */
+  getEmptyFolders(path: string | null, limit: number): Promise<SearchResult>
+  /** Links below `path` (the scan root when null) whose target is missing. */
+  getBrokenLinks(path: string | null, limit: number): Promise<BrokenLinkResult>
   findDuplicates(path: string | null): Promise<DuplicateGroup[]>
   cancelDuplicates(): Promise<void>
   openPath(path: string): Promise<void>

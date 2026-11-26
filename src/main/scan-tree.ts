@@ -10,6 +10,8 @@ export const NONE = -1
 const DIR = 1
 const REMOVED = 2
 const UNREADABLE = 4
+const LEFT_OUT = 8
+const LISTED = 16
 
 type Column = Float64Array | Int32Array | Uint32Array | Uint8Array
 
@@ -147,6 +149,27 @@ export class ScanTree {
 
   markUnreadable(id: number): void {
     this.flags[id] |= UNREADABLE
+  }
+
+  /**
+   * A folder holding an entry the scan did not record: a link it did not follow, a hidden or
+   * special file it skipped, or an entry it could not read. Such a folder is never reported empty.
+   */
+  hasLeftOut(id: number): boolean {
+    return (this.flags[id] & LEFT_OUT) !== 0
+  }
+
+  markLeftOut(id: number): void {
+    this.flags[id] |= LEFT_OUT
+  }
+
+  /** A folder whose whole listing was read, so its recorded children are all it held. */
+  isListed(id: number): boolean {
+    return (this.flags[id] & LISTED) !== 0
+  }
+
+  markListed(id: number): void {
+    this.flags[id] |= LISTED
   }
 
   ext(id: number): string {

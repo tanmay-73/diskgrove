@@ -191,6 +191,40 @@ it('lists what the scan could not read and reveals those entries only', async ()
   }
 })
 
+it('lists empty folders and broken links, and deletes a broken link after confirmation', async () => {
+  const { shell } = await import('electron')
+  const empty = path.join(root, 'empty')
+  const link = path.join(root, 'dangling')
+  const gone = path.join(fixture, 'gone')
+  await fs.mkdir(empty)
+  await fs.mkdir(gone)
+  await fs.symlink(gone, link, 'junction')
+  await fs.rm(gone, { recursive: true })
+  try {
+    await invoke('scan:start', root, {})
+    expect(await invoke('scan:empty-folders', null, 10)).toMatchObject({ root, total: 1, hits: [{ path: empty }] })
+    expect(await invoke('scan:broken-links', root, 10)).toMatchObject({ root, total: 1, links: [{ path: link }] })
+    await invoke('item:reveal', link)
+    expect(shell.showItemInFolder).toHaveBeenCalledWith(link)
+
+    harness.prompt.mockClear()
+    harness.prompt.mockResolvedValue({ response: 1 })
+    expect(await invoke('items:delete', [link], 'permanent')).toEqual({
+      mode: 'permanent',
+      deleted: [link],
+      failed: []
+    })
+    expect(harness.prompt).toHaveBeenCalledTimes(1)
+    await expect(fs.lstat(link)).rejects.toThrow()
+    expect(await invoke('scan:broken-links', null, 10)).toMatchObject({ total: 0, links: [] })
+  } finally {
+    harness.prompt.mockReset()
+    await fs.rm(link, { force: true }).catch(() => undefined)
+    await fs.rm(empty, { recursive: true, force: true })
+    await invoke('scan:start', root, {})
+  }
+})
+
 it('reveals installed apps and draws their icons by the ID the list gave them, never by a path', async () => {
   const { shell } = await import('electron')
   await expect(Promise.resolve().then(() => invoke('apps:reveal', root))).rejects.toThrow('app id')

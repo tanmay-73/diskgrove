@@ -13,6 +13,7 @@ import type {
   AgeBucket,
   AppMeta,
   AppSettings,
+  BrokenLinkResult,
   ChildrenResult,
   DeleteMode,
   DeleteResult,
@@ -38,6 +39,7 @@ const DEFAULT_SORT: SortSpec = { key: 'size', dir: 'desc' }
 
 // The IPC handler caps a search at 2000 hits; the results list is virtualized.
 const SEARCH_LIMIT = 2000
+const CLEANUP_LIMIT = 2000
 const SEARCH_DEBOUNCE_MS = 200
 const LIVE_REFRESH_MS = 2000
 
@@ -94,6 +96,10 @@ interface ScanContextValue {
   duplicates: DuplicateGroup[]
   dupProgress: DupProgress | null
   dupLoading: boolean
+  /** Outermost empty folders below the selected folder, while the Empty & broken view is open. */
+  emptyFolders: SearchResult | null
+  /** Broken links below the selected folder, while the Empty & broken view is open. */
+  brokenLinks: BrokenLinkResult | null
   pendingDelete: NodeSummary[] | null
   previewItem: NodeSummary | null
   toast: string | null
@@ -170,6 +176,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([])
   const [dupProgress, setDupProgress] = useState<DupProgress | null>(null)
   const [dupLoading, setDupLoading] = useState(false)
+  const [emptyFolders, setEmptyFolders] = useState<SearchResult | null>(null)
+  const [brokenLinks, setBrokenLinks] = useState<BrokenLinkResult | null>(null)
   const [pendingDelete, setPendingDelete] = useState<NodeSummary[] | null>(null)
   const [previewItem, setPreviewItem] = useState<NodeSummary | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -303,6 +311,16 @@ export function ScanProvider({ children }: { children: ReactNode }) {
           const buckets = await window.diskgrove.getAgeStats(selectedPath)
           if (latest()) setAge(buckets)
         }
+        if (tab === 'empty') {
+          const [folders, links] = await Promise.all([
+            window.diskgrove.getEmptyFolders(selectedPath, CLEANUP_LIMIT),
+            window.diskgrove.getBrokenLinks(selectedPath, CLEANUP_LIMIT)
+          ])
+          if (latest()) {
+            setEmptyFolders(folders)
+            setBrokenLinks(links)
+          }
+        }
         if (tab === 'treemap' || tab === 'pie' || tab === 'bar') {
           const tree = await window.diskgrove.getTreemap(selectedPath, treemapDepth, treemapMin)
           if (latest()) setTreemap(tree)
@@ -351,6 +369,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       setPreviewItem(null)
       setComplete(null)
       setDuplicates([])
+      setEmptyFolders(null)
+      setBrokenLinks(null)
       searchEpoch.current++
       setSearchResult(null)
       setSearching(false)
@@ -694,6 +714,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       duplicates,
       dupProgress,
       dupLoading,
+      emptyFolders,
+      brokenLinks,
       pendingDelete,
       previewItem,
       toast,
@@ -757,6 +779,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       duplicates,
       dupProgress,
       dupLoading,
+      emptyFolders,
+      brokenLinks,
       pendingDelete,
       previewItem,
       toast,
