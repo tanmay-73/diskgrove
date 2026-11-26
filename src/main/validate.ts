@@ -6,11 +6,14 @@ export type ReportFormat = 'csv' | 'json' | 'html'
 export interface ScanOptions {
   followLinks: boolean
   skipHidden: boolean
+  /** Names, `*`/`?` patterns and absolute paths to leave out of the scan. */
+  exclude: string[]
 }
 
 const MAX_PATH_LENGTH = 32767
 const MAX_QUERY_LENGTH = 256
 const MAX_DELETE_BATCH = 10000
+const MAX_EXCLUDES = 200
 
 const SORT_KEYS: ReadonlySet<string> = new Set<SortKey>([
   'name',
@@ -89,9 +92,26 @@ export function asSort(value: unknown): SortSpec {
   }
 }
 
+/**
+ * The exclusion list, trimmed, without blanks or repeats. Unusable entries are dropped rather than
+ * rejected, since the list also comes back from a settings file that may have been edited by hand.
+ */
+export function asExcludeList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const out: string[] = []
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const pattern = item.trim()
+    if (!pattern || pattern.length > MAX_PATH_LENGTH || pattern.includes('\0') || out.includes(pattern)) continue
+    out.push(pattern)
+    if (out.length === MAX_EXCLUDES) break
+  }
+  return out
+}
+
 export function asScanOptions(value: unknown): ScanOptions {
   const v = asRecord(value)
-  return { followLinks: v.followLinks === true, skipHidden: v.skipHidden === true }
+  return { followLinks: v.followLinks === true, skipHidden: v.skipHidden === true, exclude: asExcludeList(v.exclude) }
 }
 
 /** An installed app's ID as the app list reports it. */

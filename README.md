@@ -167,6 +167,12 @@ includes their targets and stops directory cycles. Shared targets may be counted
 more than once. File actions through linked directories are refused; scan the
 target directly to manage those files.
 
+**Excluded items** in the settings menu lists what scans leave out. A name such
+as `node_modules` or `.git`, or a pattern with `*` and `?` such as `*.tmp`,
+matches files and folders anywhere in the scan, ignoring case. A full path
+leaves out that one folder. Excluded items are not opened, so they do not count
+toward any size; scan an excluded folder directly to see it.
+
 On Linux, kernel virtual filesystems such as `/proc` and `/sys` are listed but
 not scanned unless one is chosen as the scan root: their files report sizes that
 are not stored anywhere. On macOS, `/dev` is treated the same way, and folders
