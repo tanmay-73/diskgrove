@@ -18,7 +18,8 @@ import {
   Table2,
   Clock,
   FileType2,
-  Files
+  Files,
+  FolderX
 } from 'lucide-react'
 import type { RightTab, ThemeMode } from '@shared/types'
 import { THEME_OPTIONS } from '@shared/themes'
@@ -50,7 +51,8 @@ const TABS: Array<{ id: RightTab; label: string; icon: typeof Table2 }> = [
   { id: 'extensions', label: 'Extensions', icon: FileType2 },
   { id: 'topfiles', label: 'Top files', icon: Files },
   { id: 'age', label: 'File age', icon: Clock },
-  { id: 'duplicates', label: 'Duplicates', icon: Copy }
+  { id: 'duplicates', label: 'Duplicates', icon: Copy },
+  { id: 'empty', label: 'Empty & broken', icon: FolderX }
 ]
 
 function Tip({ label, children }: { label: string; children: ReactNode }) {

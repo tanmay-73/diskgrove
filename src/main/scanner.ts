@@ -6,6 +6,7 @@ import path from 'node:path'
 import {
   ancestorIdentities,
   assertUnchanged,
+  fileIdentity,
   sameEntry,
   type FileIdentity,
   type ItemCheck,
@@ -23,6 +24,8 @@ import type { Dirent, Stats } from 'node:fs'
 import { categoryOf } from '@shared/format'
 import type {
   AgeBucket,
+  BrokenLink,
+  BrokenLinkResult,
   ChildrenResult,
   DeleteMode,
   DeleteResult,
@@ -54,6 +57,14 @@ interface Unreadable {
   code: string
 }
 
+/** A link in `folder` whose target was missing when the scan reached it. */
+interface DanglingLink {
+  folder: number
+  name: string
+  identity: FileIdentity
+  target: string
+}
+
 const SAMPLE_HEAD = 1024 * 1024
 const SAMPLE_TAIL = 64 * 1024
 
@@ -81,6 +92,12 @@ function unreadableCode(error: unknown): string | null {
   // Deleted or replaced between being listed and being read: nothing is missing from the totals.
   if (code === 'ENOENT' || code === 'ENOTDIR') return null
   return code ?? 'UNKNOWN'
+}
+
+/** The error a link with a missing target, or a chain of links that loops, gives when followed. */
+function isMissingTarget(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return code === 'ENOENT' || code === 'ENOTDIR' || code === 'ELOOP'
 }
 
 const AGE_DEFS: Array<{ id: string; label: string; maxAgeMs: number | null }> = [
@@ -116,6 +133,7 @@ export class Scanner {
   private files = 0
   private folders = 0
   private unreadable: Unreadable[] = []
+  private brokenLinks: DanglingLink[] = []
   private bytes = 0
   private allocated = 0
   private currentPath = ''
@@ -186,6 +204,7 @@ export class Scanner {
     this.files = 0
     this.folders = 0
     this.unreadable = []
+    this.brokenLinks = []
     this.bytes = 0
     this.allocated = 0
     this.followLinks = Boolean(options.followLinks)
@@ -269,11 +288,33 @@ export class Scanner {
     const code = unreadableCode(error)
     if (code === null) return
     if (name === null) this.tree.markUnreadable(folder)
+    else this.tree.markLeftOut(folder)
     this.unreadable.push({ folder, name, kind, code })
   }
 
+  /**
+   * Whether the link at `linkPath` leads anywhere. A link whose target is missing is recorded for the
+   * broken links view; a link that went away or cannot be checked is left alone.
+   */
+  private async linkResolves(folder: number, name: string, linkPath: string, identity?: Stats): Promise<boolean> {
+    const native = nativePath(linkPath)
+    try {
+      const own = identity ?? (await fs.lstat(native))
+      try {
+        await fs.stat(native)
+        return true
+      } catch (error) {
+        if (!isMissingTarget(error)) return true
+      }
+      const target = await fs.readlink(native).catch(() => '')
+      this.brokenLinks.push({ folder, name, identity: fileIdentity(own), target: displayPath(target) })
+    } catch {
+      /* gone since it was listed */
+    }
+    return false
+  }
+
   private shouldSkip(name: string): boolean {
-    if (name === '.' || name === '..') return true
     if (name === 'System Volume Information') return true
     if (this.skipHidden && name.startsWith('.')) return true
     return false
@@ -296,14 +337,31 @@ export class Scanner {
       const processChunk = async (chunk: Dirent[]) => {
         await forEachConcurrent(chunk, 4, async (entry) => {
           if (this.cancelled) return
-          if (this.shouldSkip(entry.name)) return
-          if (!this.followLinks && isLink(entry)) return
-
+          if (entry.name === '.' || entry.name === '..') return
+          // Whatever is left out below keeps the folder from being reported empty.
+          if (this.shouldSkip(entry.name)) {
+            tree.markLeftOut(dir.id)
+            return
+          }
           const childPath = joinPath(dir.path, entry.name)
-          if (this.duplicatePaths.has(childPath)) return
+          if (!this.followLinks && isLink(entry)) {
+            tree.markLeftOut(dir.id)
+            await this.linkResolves(dir.id, entry.name, childPath)
+            return
+          }
+          if (this.duplicatePaths.has(childPath)) {
+            tree.markLeftOut(dir.id)
+            return
+          }
           try {
             const identity = await fs.lstat(nativePath(childPath))
-            if (identity.isSymbolicLink() && !this.followLinks) return
+            if (identity.isSymbolicLink()) {
+              const resolves = await this.linkResolves(dir.id, entry.name, childPath, identity)
+              if (!resolves || !this.followLinks) {
+                tree.markLeftOut(dir.id)
+                return
+              }
+            }
             const st = identity.isSymbolicLink() ? await fs.stat(nativePath(childPath)) : identity
             // Mount points of virtual filesystems are listed but their contents are not real data.
             const virtual = this.virtualDevices.has(st.dev)
@@ -315,7 +373,10 @@ export class Scanner {
               if (!virtual) enqueue({ id: child, path: childPath })
               return
             }
-            if (!st.isFile() || virtual) return
+            if (!st.isFile() || virtual) {
+              tree.markLeftOut(dir.id)
+              return
+            }
 
             const size = Number(st.size) || 0
             const alloc = allocatedOf(size, st)
@@ -339,6 +400,7 @@ export class Scanner {
         }
       }
       if (!this.cancelled && chunk.length) await processChunk(chunk)
+      if (!this.cancelled) tree.markListed(dir.id)
     } catch (error) {
       this.noteUnreadable(dir.id, null, 'dir', error)
     }
@@ -388,6 +450,11 @@ export class Scanner {
   }
 
   private async assertCurrentId(id: number, check: ItemCheck): Promise<void> {
+    await assertUnchanged(this.identitiesOf(id), check)
+  }
+
+  /** What the scan saw at `id` and at every folder above it, the item first. */
+  private identitiesOf(id: number): PathIdentity[] {
     const tree = this.tree
     const identities: PathIdentity[] = []
     let item = id
@@ -397,7 +464,7 @@ export class Scanner {
       itemPath = tree.parentPath(item, itemPath)
       item = tree.parent[item]
     }
-    await assertUnchanged([...identities, ...this.rootAncestors], check)
+    return [...identities, ...this.rootAncestors]
   }
 
   getChildren(target: string, sort: SortSpec): ChildrenResult {
@@ -697,6 +764,102 @@ export class Scanner {
     return this.tree.pathOf(folder)
   }
 
+  /**
+   * Folders below `target` holding no files at any depth, outermost only: deleting one removes the
+   * empty folders inside it, which its `folderCount` counts. A folder qualifies only when the scan
+   * listed it completely and left nothing in it out, so skipped hidden files, unfollowed links and
+   * unreadable entries never make a folder look empty.
+   */
+  async getEmptyFolders(target: string | null, limit: number): Promise<SearchResult> {
+    const id = this.getId(target)
+    if (id === null) return { root: target ?? '', hits: [], total: 0 }
+    const tree = this.tree
+    const root = tree.pathOf(id)
+    const found: number[] = []
+    const done = await this.eachBelow(id, (item) => {
+      if (tree.isDir(item)) found.push(item)
+    })
+    if (!done) return { root, hits: [], total: 0 }
+
+    // A folder's id is smaller than its subfolders', so going down from the largest id settles every
+    // subfolder before the folder that holds it.
+    const dirs = Int32Array.from(found).sort()
+    const holdsSomething = new Uint8Array(tree.count)
+    for (let i = dirs.length - 1; i >= 0; i--) {
+      const dir = dirs[i]
+      if (
+        holdsSomething[dir] ||
+        tree.fileCount[dir] > 0 ||
+        !tree.isListed(dir) ||
+        tree.hasLeftOut(dir) ||
+        tree.isUnreadable(dir)
+      ) {
+        holdsSomething[dir] = 1
+        holdsSomething[tree.parent[dir]] = 1
+      }
+    }
+
+    const best = new TopK<number>(
+      Math.max(1, Math.min(limit, 5000)),
+      (a, b) => tree.folderCount[b] - tree.folderCount[a] || a - b
+    )
+    let total = 0
+    for (const dir of dirs) {
+      if (holdsSomething[dir]) continue
+      const parent = tree.parent[dir]
+      if (parent !== id && !holdsSomething[parent]) continue
+      total++
+      best.push(dir)
+    }
+    return { root, hits: best.sorted().map((dir) => this.toSummary(dir)), total }
+  }
+
+  /** Links below `target` whose target was missing, in the order the scan found them. */
+  getBrokenLinks(target: string | null, limit: number): BrokenLinkResult {
+    const id = this.getId(target)
+    if (id === null) return { root: target ?? '', links: [], total: 0 }
+    const tree = this.tree
+    const root = tree.pathOf(id)
+    const inside = (folder: number) => {
+      for (let n = folder; n !== NONE; n = tree.parent[n]) if (n === id) return true
+      return false
+    }
+    const matches = this.brokenLinks.filter((link) => !tree.isRemoved(link.folder) && inside(link.folder))
+    const links = matches.slice(0, Math.max(0, limit)).map((link): BrokenLink => {
+      const folder = tree.pathOf(link.folder)
+      return {
+        path: joinPath(folder, link.name),
+        name: link.name,
+        kind: 'file',
+        size: 0,
+        allocated: 0,
+        mtime: link.identity.mtimeMs,
+        atime: 0,
+        ctime: 0,
+        fileCount: 0,
+        folderCount: 0,
+        ext: '',
+        parentPath: folder,
+        hasSubdirs: false,
+        target: link.target
+      }
+    })
+    return { root, links, total: matches.length }
+  }
+
+  private findBrokenLink(target: string): DanglingLink | null {
+    const folder = this.tree.find(path.dirname(target))
+    if (folder === null || this.tree.isRemoved(folder)) return null
+    const name = path.basename(target)
+    return this.brokenLinks.find((link) => link.folder === folder && link.name === name) ?? null
+  }
+
+  /** The scanned folder holding `target`, when `target` is a broken link the scan found. */
+  brokenLinkParent(target: string): string | null {
+    const link = this.findBrokenLink(target)
+    return link ? this.tree.pathOf(link.folder) : null
+  }
+
   async findDuplicates(target: string | null): Promise<DuplicateGroup[]> {
     const id = this.getId(target)
     if (id === null) return []
@@ -822,7 +985,7 @@ export class Scanner {
   async deletePath(target: string, mode: DeleteMode): Promise<{ ok: boolean; error?: string }> {
     if (this.running) return { ok: false, error: 'Wait for the scan to finish before deleting items' }
     const id = this.getId(target)
-    if (id === null) return { ok: false, error: 'Not found in scan results' }
+    if (id === null) return this.deleteBrokenLink(target, mode)
     if (id === 0) return { ok: false, error: 'Cannot delete the scan root' }
     const tree = this.tree
     const itemPath = tree.pathOf(id)
@@ -851,10 +1014,28 @@ export class Scanner {
 
     tree.remove(id)
     this.unreadable = this.unreadable.filter((item) => !tree.isRemoved(item.folder))
+    this.brokenLinks = this.brokenLinks.filter((link) => !tree.isRemoved(link.folder))
     this.bytes = tree.size[0]
     this.allocated = tree.allocated[0]
     this.files = tree.fileCount[0]
     this.folders = tree.folderCount[0] + 1
+    return { ok: true }
+  }
+
+  /** Removes a broken link the scan found. Only the link goes: there is nothing behind it. */
+  private async deleteBrokenLink(target: string, mode: DeleteMode): Promise<{ ok: boolean; error?: string }> {
+    const link = this.findBrokenLink(target)
+    if (!link) return { ok: false, error: 'Not found in scan results' }
+    const linkPath = joinPath(this.tree.pathOf(link.folder), link.name)
+    const native = nativePath(linkPath)
+    try {
+      await assertUnchanged([{ path: native, stats: link.identity }, ...this.identitiesOf(link.folder)], 'delete')
+      if (mode === 'trash') await shell.trashItem(linkPath)
+      else await removeLink(native)
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+    this.brokenLinks = this.brokenLinks.filter((item) => item !== link)
     return { ok: true }
   }
 }

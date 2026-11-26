@@ -16,12 +16,15 @@ export function ItemMenu({
   item,
   selection,
   locate,
+  canOpen = true,
   children
 }: {
   item: NodeSummary
   selection?: NodeSummary[]
   /** Offer "Show in tree", for lists that are not already the folder's contents. */
   locate?: boolean
+  /** Offer "Open"; off for items with nothing to open, such as broken links. */
+  canOpen?: boolean
   children: ReactNode
 }) {
   const {
@@ -51,9 +54,11 @@ export function ItemMenu({
           focusSearch()
         }}
       >
-        <ContextMenuItem onClick={() => void openItem(item.path)}>
-          <ExternalLink className="size-4" /> Open
-        </ContextMenuItem>
+        {canOpen ? (
+          <ContextMenuItem onClick={() => void openItem(item.path)}>
+            <ExternalLink className="size-4" /> Open
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuItem onClick={() => void revealItem(item.path)}>
           <FolderOpen className="size-4" /> {revealLabel(meta?.platform)}
         </ContextMenuItem>

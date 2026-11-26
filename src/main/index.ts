@@ -332,6 +332,12 @@ function registerIpc(): void {
     scanner.search(asQuery(query), asOptionalPath(target), asInt(limit, 1, 2000, 400))
   )
   handle('scan:unreadable', (_e, limit) => scanner.getUnreadable(asInt(limit, 1, 5000, 1000)))
+  handle('scan:empty-folders', (_e, target, limit) =>
+    scanner.getEmptyFolders(asOptionalPath(target), asInt(limit, 1, 5000, 2000))
+  )
+  handle('scan:broken-links', (_e, target, limit) =>
+    scanner.getBrokenLinks(asOptionalPath(target), asInt(limit, 1, 5000, 2000))
+  )
   handle('scan:duplicates', (_e, target) =>
     operations.run('duplicate detection', () => scanner.findDuplicates(asOptionalPath(target)))
   )
@@ -352,8 +358,10 @@ function registerIpc(): void {
   handle('item:reveal', (_e, target) =>
     operations.run('revealing the item', async () => {
       const itemPath = asPath(target)
-      const folder = scanner.getNode(itemPath) ? null : scanner.unreadableParent(itemPath)
-      // An entry the scan could not read is checked through the folder that lists it.
+      const folder = scanner.getNode(itemPath)
+        ? null
+        : (scanner.unreadableParent(itemPath) ?? scanner.brokenLinkParent(itemPath))
+      // An entry the scan could not read, or a broken link, is checked through the folder that lists it.
       await scanner.assertCurrent(folder ?? scannedNode(itemPath).path, 'read')
       shell.showItemInFolder(itemPath)
     })
@@ -370,7 +378,10 @@ function registerIpc(): void {
   })
   handle('items:delete', (event, targets, mode) =>
     operations.run('deletion', async () => {
-      const paths = [...new Set(asPathList(targets))].map((p) => scannedNode(p).path)
+      // Broken links are not part of the scan tree, but the scan found them and can remove them.
+      const paths = [...new Set(asPathList(targets))].map((p) =>
+        scanner.brokenLinkParent(p) !== null ? p : scannedNode(p).path
+      )
       const deleteMode = asDeleteMode(mode)
       if (paths.includes(scanner.getRootPath())) throw new Error('Cannot delete the scan root')
       const owner = fromEvent(event)
