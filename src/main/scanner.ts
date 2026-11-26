@@ -15,9 +15,10 @@ import { fs } from './real-fs'
 import { forEachConcurrent, walkQueue } from './concurrency'
 import { allocatedOf, displayPath, isLink, nativePath } from './disk-usage'
 import { TopK } from './top-k'
-import { compileNameQuery } from './name-match'
+import { compileNamePatterns, compileNameQuery } from './name-match'
 import { firmlinkDuplicates, virtualDevices } from './mounts'
 import { joinPath, NONE, ScanTree } from './scan-tree'
+import type { ScanOptions } from './validate'
 import { setImmediate as yieldToLoop } from 'node:timers/promises'
 import type { Dirent, Stats } from 'node:fs'
 import { categoryOf } from '@shared/format'
@@ -75,6 +76,28 @@ export async function resolveScanRoot(root: string): Promise<string> {
   }
 }
 
+// Windows and macOS volumes normally ignore case, so `c:\users\me\videos` typed into the list still
+// matches the folder the scan reports as `C:\Users\me\Videos`.
+const foldPath =
+  process.platform === 'win32' || process.platform === 'darwin' ? (p: string) => p.toLowerCase() : (p: string) => p
+
+/**
+ * The test for entries the user asked to leave out. An absolute path excludes that one item; anything
+ * else is a name pattern checked against every entry. The scan root is never tested, so choosing an
+ * excluded folder as the root still scans it.
+ */
+function compileExclusions(patterns: readonly string[]): (name: string, itemPath: string) => boolean {
+  const paths = new Set<string>()
+  const names: string[] = []
+  for (const pattern of patterns) {
+    if (path.isAbsolute(pattern)) paths.add(foldPath(displayPath(path.resolve(pattern))))
+    else names.push(pattern)
+  }
+  const nameMatches = compileNamePatterns(names)
+  if (paths.size === 0 && !nameMatches) return () => false
+  return (name, itemPath) => Boolean(nameMatches?.(name)) || (paths.size > 0 && paths.has(foldPath(itemPath)))
+}
+
 /** The code to report for an item that could not be read, or null when it just went away mid-scan. */
 function unreadableCode(error: unknown): string | null {
   const code = (error as NodeJS.ErrnoException | null)?.code
@@ -127,6 +150,7 @@ export class Scanner {
   private duplicatePaths = new Set<string>()
   private followLinks = false
   private skipHidden = false
+  private isExcluded: (name: string, itemPath: string) => boolean = () => false
   private progressTimer: NodeJS.Timeout | null = null
   private searchSeq = 0
   private groupSeq = 0
@@ -169,7 +193,7 @@ export class Scanner {
     this.dupCancelled = true
   }
 
-  async start(root: string, options: { followLinks?: boolean; skipHidden?: boolean } = {}): Promise<void> {
+  async start(root: string, options: Partial<ScanOptions> = {}): Promise<void> {
     this.cancel()
     const job = () => this.runScan(root, options)
     const p = this.chain.then(job, job)
@@ -177,7 +201,7 @@ export class Scanner {
     return p
   }
 
-  private async runScan(root: string, options: { followLinks?: boolean; skipHidden?: boolean }): Promise<void> {
+  private async runScan(root: string, options: Partial<ScanOptions>): Promise<void> {
     this.tree = new ScanTree('')
     this.realPaths.clear()
     this.cancelled = false
@@ -190,6 +214,7 @@ export class Scanner {
     this.allocated = 0
     this.followLinks = Boolean(options.followLinks)
     this.skipHidden = Boolean(options.skipHidden)
+    this.isExcluded = compileExclusions(options.exclude ?? [])
     this.rootPath = displayPath(path.resolve(root))
     this.currentPath = this.rootPath
     this.startedAt = Date.now()
@@ -300,7 +325,7 @@ export class Scanner {
           if (!this.followLinks && isLink(entry)) return
 
           const childPath = joinPath(dir.path, entry.name)
-          if (this.duplicatePaths.has(childPath)) return
+          if (this.duplicatePaths.has(childPath) || this.isExcluded(entry.name, childPath)) return
           try {
             const identity = await fs.lstat(nativePath(childPath))
             if (identity.isSymbolicLink() && !this.followLinks) return

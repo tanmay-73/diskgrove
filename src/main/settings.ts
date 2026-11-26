@@ -5,11 +5,13 @@ import { randomUUID } from 'node:crypto'
 import type { AppSettings, RecentScan, SearchScope } from '@shared/types'
 import { isThemeMode } from '@shared/themes'
 import { DEFAULT_FONT_SCALE, isFontScale } from '@shared/font-scale'
+import { asExcludeList } from './validate'
 
 const DEFAULTS: AppSettings = {
   theme: 'dark',
   followLinks: false,
   skipHidden: false,
+  exclude: [],
   showFreeSpace: true,
   showPreview: true,
   fontScale: DEFAULT_FONT_SCALE,
@@ -66,6 +68,7 @@ export function sanitizeSettings(input: unknown, base: AppSettings): AppSettings
     theme: isThemeMode(src.theme) ? src.theme : base.theme,
     followLinks: typeof src.followLinks === 'boolean' ? src.followLinks : base.followLinks,
     skipHidden: typeof src.skipHidden === 'boolean' ? src.skipHidden : base.skipHidden,
+    exclude: src.exclude === undefined ? base.exclude : asExcludeList(src.exclude),
     showFreeSpace: typeof src.showFreeSpace === 'boolean' ? src.showFreeSpace : base.showFreeSpace,
     showPreview: typeof src.showPreview === 'boolean' ? src.showPreview : base.showPreview,
     fontScale: isFontScale(src.fontScale) ? src.fontScale : base.fontScale,

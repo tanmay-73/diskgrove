@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import {
   AArrowDown,
   AArrowUp,
@@ -23,6 +23,7 @@ import {
 import type { RightTab, ThemeMode } from '@shared/types'
 import { THEME_OPTIONS } from '@shared/themes'
 import { DEFAULT_FONT_SCALE, FONT_SCALES, stepFontScale } from '@shared/font-scale'
+import { ExcludeDialog } from '@/components/exclude-dialog'
 import { SearchBox } from '@/components/search-box'
 import { Button } from '@/components/ui/button'
 import {
@@ -77,6 +78,7 @@ export function Ribbon() {
     applySettings,
     exportReport
   } = useScan()
+  const [excludeOpen, setExcludeOpen] = useState(false)
 
   // The ribbon never wraps. As the window narrows (or the zoom grows), labels
   // collapse to icons in tiers and the search box absorbs what's left:
@@ -313,6 +315,12 @@ export function Ribbon() {
             >
               Follow symbolic links
             </DropdownMenuCheckboxItem>
+            <DropdownMenuItem onSelect={() => setExcludeOpen(true)}>
+              Excluded items…
+              {settings.exclude.length ? (
+                <span className="tabular ml-auto text-xs text-muted-foreground">{settings.exclude.length}</span>
+              ) : null}
+            </DropdownMenuItem>
             <DropdownMenuCheckboxItem
               checked={settings.skipHidden}
               onCheckedChange={(v) => void applySettings({ skipHidden: Boolean(v) })}
@@ -327,6 +335,7 @@ export function Ribbon() {
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <ExcludeDialog open={excludeOpen} onOpenChange={setExcludeOpen} />
       </div>
       {scanning ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-primary/15">

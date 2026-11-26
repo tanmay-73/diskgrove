@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({ shell: { trashItem: vi.fn() } }))
-import { compileNameQuery, foldName, wildcardMatch } from '../src/main/name-match'
+import { compileNamePatterns, compileNameQuery, foldName, wildcardMatch } from '../src/main/name-match'
 import { Scanner } from '../src/main/scanner'
 import { baseName, isWithin, pathCrumbs } from '../src/shared/paths'
 
@@ -52,6 +52,16 @@ describe('name queries', () => {
     expect(compileNameQuery('   ')).toBeNull()
     const long = 'a'.repeat(300)
     expect(matches(long, 'a'.repeat(256))).toBe(true)
+  })
+
+  it('matches exclusion patterns against the whole name', () => {
+    const excluded = compileNamePatterns(['node_modules', '*.TMP', ' '])!
+    expect(excluded('node_modules')).toBe(true)
+    expect(excluded('Node_Modules')).toBe(true)
+    expect(excluded('old_node_modules')).toBe(false)
+    expect(excluded('render.tmp')).toBe(true)
+    expect(excluded('render.tmp.png')).toBe(false)
+    expect(compileNamePatterns(['', '  '])).toBeNull()
   })
 
   it('stays fast on patterns built to backtrack', () => {
