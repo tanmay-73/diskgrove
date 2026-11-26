@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   followLinks: false,
   skipHidden: false,
+  exclude: [],
   showFreeSpace: true,
   showPreview: true,
   fontScale: DEFAULT_FONT_SCALE,
@@ -390,7 +391,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       try {
         await window.diskgrove.startScan(path, {
           followLinks: settings.followLinks,
-          skipHidden: settings.skipHidden
+          skipHidden: settings.skipHidden,
+          exclude: settings.exclude
         })
         const s = await window.diskgrove.getSettings()
         setSettings(s)
@@ -403,7 +405,16 @@ export function ScanProvider({ children }: { children: ReactNode }) {
         scanInFlight.current = false
       }
     },
-    [settings.followLinks, settings.skipHidden, scanning, dupLoading, refreshVisible, loadSideData, showToast]
+    [
+      settings.followLinks,
+      settings.skipHidden,
+      settings.exclude,
+      scanning,
+      dupLoading,
+      refreshVisible,
+      loadSideData,
+      showToast
+    ]
   )
 
   const cancelScan = useCallback(async () => {

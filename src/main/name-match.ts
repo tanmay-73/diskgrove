@@ -67,3 +67,24 @@ export function compileNameQuery(query: string): ((name: string) => boolean) | n
   if (/[*?]/.test(needle)) return (name) => wildcardMatch(foldName(name), needle)
   return (name) => foldName(name).includes(needle)
 }
+
+/**
+ * Compiles a list of name patterns, such as the scan exclusions, into one test. Unlike a search query,
+ * a pattern must match the whole name: `build` leaves out folders called `build`, not `rebuild.log`.
+ * Returns null when no pattern is left after trimming.
+ */
+export function compileNamePatterns(patterns: readonly string[]): ((name: string) => boolean) | null {
+  const exact = new Set<string>()
+  const globs: string[] = []
+  for (const pattern of patterns) {
+    const folded = foldName(pattern.trim())
+    if (!folded) continue
+    if (/[*?]/.test(folded)) globs.push(folded)
+    else exact.add(folded)
+  }
+  if (exact.size === 0 && globs.length === 0) return null
+  return (name) => {
+    const folded = foldName(name)
+    return exact.has(folded) || globs.some((glob) => wildcardMatch(folded, glob))
+  }
+}

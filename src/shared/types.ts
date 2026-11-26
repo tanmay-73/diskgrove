@@ -187,6 +187,8 @@ export interface AppSettings {
   theme: ThemeMode
   followLinks: boolean
   skipHidden: boolean
+  /** Names, `*`/`?` patterns and absolute paths that scans leave out. */
+  exclude: string[]
   showFreeSpace: boolean
   showPreview: boolean
   fontScale: number
@@ -299,7 +301,7 @@ export interface DiskGroveAPI {
   pickFolder(): Promise<string | null>
   /** The path a scan of `path` will report: its real location when the path runs through a link. */
   resolveScanRoot(path: string): Promise<string>
-  startScan(path: string, options?: { followLinks?: boolean; skipHidden?: boolean }): Promise<void>
+  startScan(path: string, options?: { followLinks?: boolean; skipHidden?: boolean; exclude?: string[] }): Promise<void>
   cancelScan(): Promise<void>
   getChildren(path: string, sort: SortSpec): Promise<ChildrenResult>
   getNode(path: string): Promise<NodeSummary | null>

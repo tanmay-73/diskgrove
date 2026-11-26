@@ -52,6 +52,16 @@ it('recovers from malformed JSON and ignores unknown settings', async () => {
   expect(settings).not.toHaveProperty('arbitrary')
 })
 
+it('stores the exclusion list without blanks or repeats', async () => {
+  const { loadSettings, saveSettings } = await import('../src/main/settings')
+  expect((await loadSettings()).exclude).toEqual([])
+  const settings = await saveSettings({ exclude: ['node_modules', ' node_modules ', '', '*.log', null] })
+  expect(settings.exclude).toEqual(['node_modules', '*.log'])
+  // A patch that leaves the list out keeps it.
+  expect((await saveSettings({ skipHidden: true })).exclude).toEqual(['node_modules', '*.log'])
+  expect((await saveSettings({ exclude: 'node_modules' })).exclude).toEqual([])
+})
+
 it('keeps the font size to the supported steps', async () => {
   const { loadSettings, saveSettings } = await import('../src/main/settings')
   const { stepFontScale } = await import('../src/shared/font-scale')
