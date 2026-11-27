@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   Square,
   Table2,
+  Target,
   Clock,
   FileType2,
   Files,
@@ -47,6 +48,7 @@ import { useScan } from '@/scan-context'
 const TABS: Array<{ id: RightTab; label: string; icon: typeof Table2 }> = [
   { id: 'details', label: 'Details', icon: Table2 },
   { id: 'treemap', label: 'Treemap', icon: LayoutGrid },
+  { id: 'sunburst', label: 'Sunburst', icon: Target },
   { id: 'pie', label: 'Pie chart', icon: PieChart },
   { id: 'bar', label: 'Bar chart', icon: BarChart3 },
   { id: 'extensions', label: 'Extensions', icon: FileType2 },

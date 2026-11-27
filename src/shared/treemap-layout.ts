@@ -107,7 +107,7 @@ export function readableOn(fill: string, candidates: string[]): string {
   return best
 }
 
-function specialOf(node: TreemapNode): TreemapCell['special'] {
+export function specialOf(node: TreemapNode): 'free' | 'other' | null {
   if (node.path === FREE_SPACE_PATH) return 'free'
   if (node.path.endsWith(OTHER_SUFFIX)) return 'other'
   return null
@@ -115,8 +115,47 @@ function specialOf(node: TreemapNode): TreemapCell['special'] {
 
 // The scanner reports extensions with their dot (".mp4"), or "(none)" for names like Makefile
 // and the extensionless executables common on macOS and Linux.
-function extLabel(ext: string): string {
+export function extLabel(ext: string): string {
   return !ext || ext === '(none)' ? 'No extension' : `.${ext.replace(/^\./, '')}`
+}
+
+export interface TypeColoring {
+  /** Color for a file with this extension. */
+  colorOf: (ext: string) => string
+  /** Color for folders drawn as solid tiles because they sit below the depth limit. */
+  folderTileColor: string
+  /** Legend entries: ranked extensions, the rest, then the folder tiles if any. */
+  legend: (folderTiles: number) => TreemapLegendEntry[]
+}
+
+/** Type mode: the extensions taking the most room get distinct colors. */
+export function typeColoring(files: Iterable<{ ext: string; value: number }>, theme: TreemapTheme): TypeColoring {
+  const { palette, foreground, background } = theme
+  const extTotals = new Map<string, number>()
+  for (const f of files) {
+    const key = f.ext.toLowerCase()
+    extTotals.set(key, (extTotals.get(key) ?? 0) + f.value)
+  }
+  const rankedExts = [...extTotals.entries()].sort((a, b) => b[1] - a[1])
+  const extColor = new Map<string, string>()
+  rankedExts.slice(0, palette.length).forEach(([ext], i) => extColor.set(ext, palette[i]))
+  const otherTypeColor = mixColors(foreground, background, 0.6)
+  const folderTileColor = mixColors(foreground, background, 0.72)
+
+  return {
+    colorOf: (ext) => extColor.get(ext.toLowerCase()) ?? otherTypeColor,
+    folderTileColor,
+    legend: (folderTiles) => {
+      const legend: TreemapLegendEntry[] = []
+      for (const [ext, value] of rankedExts.slice(0, palette.length)) {
+        legend.push({ label: extLabel(ext), color: extColor.get(ext)!, value })
+      }
+      const rest = rankedExts.slice(palette.length).reduce((sum, [, v]) => sum + v, 0)
+      if (rest > 0) legend.push({ label: 'Other types', color: otherTypeColor, value: rest })
+      if (folderTiles > 0) legend.push({ label: 'Folders (deeper)', color: folderTileColor, value: folderTiles })
+      return legend
+    }
+  }
 }
 
 function canHaveHeader(node: HierarchyRectangularNode<TreemapNode>): boolean {
@@ -158,20 +197,16 @@ export function layoutTreemap(
     branchColor.set(child.data.path, palette[colorIndex++ % palette.length])
   }
 
-  // Type mode: the extensions taking the most room get distinct colors.
-  const extTotals = new Map<string, number>()
-  if (mode === 'type') {
-    for (const leaf of laid.leaves()) {
-      if (leaf.depth === 0 || leaf.data.kind !== 'file' || specialOf(leaf.data)) continue
-      const key = leaf.data.ext.toLowerCase()
-      extTotals.set(key, (extTotals.get(key) ?? 0) + (leaf.value ?? 0))
-    }
-  }
-  const rankedExts = [...extTotals.entries()].sort((a, b) => b[1] - a[1])
-  const extColor = new Map<string, string>()
-  rankedExts.slice(0, palette.length).forEach(([ext], i) => extColor.set(ext, palette[i]))
-  const otherTypeColor = mixColors(foreground, background, 0.6)
-  const folderTileColor = mixColors(foreground, background, 0.72)
+  const types =
+    mode === 'type'
+      ? typeColoring(
+          laid
+            .leaves()
+            .filter((l) => l.depth > 0 && l.data.kind === 'file' && !specialOf(l.data))
+            .map((l) => ({ ext: l.data.ext, value: l.value ?? 0 })),
+          theme
+        )
+      : null
 
   const cells: TreemapCell[] = []
   laid.each((node) => {
@@ -203,10 +238,10 @@ export function layoutTreemap(
       fill = mixColors(foreground, background, Math.max(0.78, 0.9 - 0.04 * (node.depth - 1)))
       subtext = 'Folder'
     } else if (node.data.kind === 'dir') {
-      fill = folderTileColor
+      fill = types!.folderTileColor
       subtext = 'Folder'
     } else {
-      fill = extColor.get(node.data.ext.toLowerCase()) ?? otherTypeColor
+      fill = types!.colorOf(node.data.ext)
       subtext = extLabel(node.data.ext)
     }
 
@@ -227,19 +262,11 @@ export function layoutTreemap(
     })
   })
 
-  const legend: TreemapLegendEntry[] = []
-  if (mode === 'type') {
-    for (const [ext, value] of rankedExts.slice(0, palette.length)) {
-      legend.push({ label: extLabel(ext), color: extColor.get(ext)!, value })
-    }
-    const rest = rankedExts.slice(palette.length).reduce((sum, [, v]) => sum + v, 0)
-    if (rest > 0) legend.push({ label: 'Other types', color: otherTypeColor, value: rest })
-    const folderTiles = laid
-      .leaves()
-      .filter((l) => l.depth > 0 && l.data.kind === 'dir' && !specialOf(l.data))
-      .reduce((sum, l) => sum + (l.value ?? 0), 0)
-    if (folderTiles > 0) legend.push({ label: 'Folders (deeper)', color: folderTileColor, value: folderTiles })
-  }
+  const folderTiles = laid
+    .leaves()
+    .filter((l) => l.depth > 0 && l.data.kind === 'dir' && !specialOf(l.data))
+    .reduce((sum, l) => sum + (l.value ?? 0), 0)
+  const legend = types ? types.legend(folderTiles) : []
 
   return { cells, legend, total }
 }

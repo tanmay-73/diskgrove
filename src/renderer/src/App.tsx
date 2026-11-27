@@ -10,6 +10,7 @@ import { DetailsTable } from '@/components/details-table'
 import { StatusBar } from '@/components/status-bar'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { TreemapView } from '@/components/charts/treemap'
+import { SunburstView } from '@/components/charts/sunburst'
 import { PieView } from '@/components/charts/pie-view'
 import { BarView } from '@/components/charts/bar-view'
 import { ExtensionsView } from '@/components/views/extensions-view'
@@ -42,6 +43,9 @@ function RightPane() {
   switch (tab) {
     case 'treemap':
       pane = <TreemapView />
+      break
+    case 'sunburst':
+      pane = <SunburstView />
       break
     case 'pie':
       pane = <PieView />

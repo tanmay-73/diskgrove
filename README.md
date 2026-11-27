@@ -12,7 +12,7 @@ or deleted without your confirmation.
 
 ## What it does
 
-- Browse folder sizes in a tree, table, treemap, pie chart or bar chart.
+- Browse folder sizes in a tree, table, treemap, sunburst chart, pie chart or bar chart.
 - Explore file extensions, modification ages and the largest files.
 - Search file and folder names in the selected folder or across the entire scan.
   Plain text matches anywhere in a name; with `*` or `?` the whole name must

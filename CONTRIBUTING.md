@@ -12,7 +12,7 @@ Discuss larger features in an issue before starting a PR.
 | ------------------- | --------------------------------------------------------------------------------- |
 | `src/main/`         | Scanning, app sizes, file actions, IPC validation, previews, settings and reports |
 | `src/preload/`      | Typed API exposed to the sandboxed renderer                                       |
-| `src/shared/`       | Data types, formatting, themes, treemap layout, CSV and ZIP readers               |
+| `src/shared/`       | Data types, formatting, themes, treemap and sunburst layouts, CSV and ZIP readers |
 | `src/renderer/src/` | React views, scan state and the PDF, Office and media previews                    |
 | `resources/`        | App icon, Windows uninstall hooks and the macOS/Linux uninstall script            |
 | `scripts/`          | Icon generation and the bundled third-party license list                          |

@@ -451,12 +451,14 @@ body,
   animation: ring-draw 800ms var(--ease-out) backwards;
 }
 
-.treemap-cell rect {
+.treemap-cell rect,
+.sunburst-arc path {
   transition:
     filter 160ms ease,
     fill-opacity 160ms ease;
 }
-.treemap-cell:hover rect {
+.treemap-cell:hover rect,
+.sunburst-arc:hover path {
   filter: brightness(1.16);
 }
 
