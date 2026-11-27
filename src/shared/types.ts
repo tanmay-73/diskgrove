@@ -7,7 +7,17 @@ export type NodeKind = 'file' | 'dir'
 export type DriveKind = 'fixed' | 'removable' | 'network' | 'optical' | 'unknown'
 
 export type RightTab =
-  'details' | 'treemap' | 'pie' | 'bar' | 'extensions' | 'topfiles' | 'age' | 'duplicates' | 'empty' | 'search'
+  | 'details'
+  | 'treemap'
+  | 'sunburst'
+  | 'pie'
+  | 'bar'
+  | 'extensions'
+  | 'topfiles'
+  | 'age'
+  | 'duplicates'
+  | 'empty'
+  | 'search'
 
 export type SortKey = 'name' | 'size' | 'allocated' | 'files' | 'folders' | 'mtime' | 'percent'
 

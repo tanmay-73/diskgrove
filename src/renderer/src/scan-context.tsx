@@ -321,7 +321,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
             setBrokenLinks(links)
           }
         }
-        if (tab === 'treemap' || tab === 'pie' || tab === 'bar') {
+        if (tab === 'treemap' || tab === 'sunburst' || tab === 'pie' || tab === 'bar') {
           const tree = await window.diskgrove.getTreemap(selectedPath, treemapDepth, treemapMin)
           if (latest()) setTreemap(tree)
         }
